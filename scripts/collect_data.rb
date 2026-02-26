@@ -1,0 +1,316 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require "csv"
+require "date"
+require "digest"
+require "fileutils"
+require "net/http"
+require "nkf"
+require "optparse"
+require "uri"
+
+class DataCollector
+  RACES_HEADERS = %w[
+    race_date
+    venue
+    race_number
+    show_result_url
+    racedetail_id
+    kaisai_start_date
+    kaisai_day_no
+  ].freeze
+
+  RESULTS_HEADERS = %w[
+    race_date
+    venue
+    race_number
+    racedetail_id
+    show_result_url
+    rank
+    result_status
+    frame_number
+    car_number
+    player_name
+    age
+    class
+    raw_cells
+  ].freeze
+
+  def initialize(from_date:, to_date:, raw_dir:, raw_html_dir:, use_cache:, sleep_sec:)
+    @from_date = Date.iso8601(from_date)
+    @to_date = Date.iso8601(to_date)
+    raise ArgumentError, "from_date must be <= to_date" if @from_date > @to_date
+
+    @raw_dir = raw_dir
+    @raw_html_dir = raw_html_dir
+    @results_html_dir = File.join(raw_html_dir, "results")
+    @use_cache = use_cache
+    @sleep_sec = sleep_sec
+    FileUtils.mkdir_p(@raw_dir)
+    FileUtils.mkdir_p(@raw_html_dir)
+    FileUtils.mkdir_p(@results_html_dir)
+  end
+
+  def run
+    (@from_date..@to_date).each_with_index do |date, idx|
+      sleep(@sleep_sec) if idx.positive? && @sleep_sec.positive?
+      kaisai_html = fetch_kaisai_html(date)
+      races = extract_girls_races(kaisai_html, date)
+      write_races_csv(date, races)
+      warn "date=#{date} races=#{races.size}"
+
+      results = collect_results_for_races(date, races)
+      write_results_csv(date, results)
+      warn "date=#{date} result_rows=#{results.size}"
+    end
+  end
+
+  private
+
+  def fetch_kaisai_html(date)
+    path = File.join(@raw_html_dir, "kaisai_#{date.strftime('%Y%m%d')}.html")
+    return File.read(path, encoding: "UTF-8") if @use_cache && File.exist?(path)
+
+    url = "https://keirin.kdreams.jp/kaisai/#{date.strftime('%Y/%m/%d')}/"
+    html = http_get(url, "gk-yosoku-collector/1.0")
+    File.write(path, html)
+    html
+  end
+
+  def fetch_result_html(date, url)
+    day_dir = File.join(@results_html_dir, date.strftime("%Y%m%d"))
+    FileUtils.mkdir_p(day_dir)
+    path = File.join(day_dir, "result_#{Digest::SHA1.hexdigest(url)}.html")
+    return File.read(path, encoding: "UTF-8") if @use_cache && File.exist?(path)
+
+    html = http_get(url, "gk-yosoku-result-collector/1.0")
+    File.write(path, html)
+    html
+  end
+
+  def http_get(url, user_agent)
+    uri = URI.parse(url)
+    http = Net::HTTP.new(uri.host, uri.port)
+    http.use_ssl = true
+    http.open_timeout = 10
+    http.read_timeout = 20
+
+    req = Net::HTTP::Get.new(uri.request_uri)
+    req["User-Agent"] = user_agent
+    req["Accept"] = "text/html,application/xhtml+xml"
+    res = http.request(req)
+    raise "HTTP #{res.code}: #{url}" unless res.code.to_i == 200
+
+    normalize_body(res.body, res["content-type"])
+  end
+
+  def normalize_body(body, content_type)
+    raw = body.dup
+    charset = content_type.to_s[/charset=([^\s;]+)/i, 1]
+    enc = begin
+      charset ? Encoding.find(charset) : NKF.guess(raw)
+    rescue StandardError
+      Encoding::UTF_8
+    end
+    raw.force_encoding(enc)
+    raw.encode("UTF-8", invalid: :replace, undef: :replace, replace: "")
+  end
+
+  def extract_girls_races(html, target_date)
+    chunks = html.split(/<div class="kaisai-list" id="k\d+">/).drop(1)
+    rows = []
+
+    chunks.each do |chunk|
+      tables = chunk.scan(/<div class="kaisai-program_table[^"]*">\s*<table>(.*?)<\/table>/m).map(&:first)
+      tables.each do |table|
+        tr_rows = table.scan(/<tr>(.*?)<\/tr>/m).map(&:first)
+        tr_rows.each_with_index do |tr, i|
+          next unless tr.include?("program_bg_7")
+
+          girls_race_numbers = extract_girls_race_numbers(tr)
+          next if girls_race_numbers.empty?
+
+          link_row = tr_rows[(i + 1)..].find { |r| r.include?("pageType=showResult") }
+          next unless link_row
+
+          links = link_row.scan(%r{(https://keirin\.kdreams\.jp/([^/]+)/racedetail/(\d{16})/\?pageType=showResult)})
+          next if links.empty?
+
+          girls_race_numbers.each do |race_no|
+            next if race_no > links.size
+
+            show_result_url, venue, racedetail_id = links[race_no - 1]
+            md = racedetail_id.match(/^\d{2}(\d{8})(\d{2})\d{4}$/)
+            next if md.nil?
+
+            start_date = Date.strptime(md[1], "%Y%m%d")
+            day_no = md[2].to_i
+            actual_date = start_date + (day_no - 1)
+            next unless actual_date == target_date
+
+            rows << {
+              "race_date" => actual_date.iso8601,
+              "venue" => venue,
+              "race_number" => race_no.to_s,
+              "show_result_url" => show_result_url,
+              "racedetail_id" => racedetail_id,
+              "kaisai_start_date" => start_date.iso8601,
+              "kaisai_day_no" => day_no.to_s
+            }
+          end
+        end
+      end
+    end
+
+    rows.uniq { |r| [r["venue"], r["race_number"], r["show_result_url"]] }
+        .sort_by { |r| [r["venue"], r["race_number"].to_i] }
+  end
+
+  def extract_girls_race_numbers(girls_row)
+    race_numbers = []
+    col = 1
+
+    girls_row.scan(/<td([^>]*)>/i).each do |attr_match|
+      attrs = attr_match[0]
+      span = (attrs[/colspan="(\d+)"/i, 1] || "1").to_i
+      klass = attrs[/class="([^"]+)"/i, 1].to_s
+      race_numbers.concat((col...(col + span)).to_a) if klass.include?("program_bg_7")
+      col += span
+    end
+
+    race_numbers
+  end
+
+  def collect_results_for_races(date, races)
+    rows = []
+    races.each_with_index do |race, idx|
+      sleep(@sleep_sec) if idx.positive? && @sleep_sec.positive?
+      html = fetch_result_html(date, race["show_result_url"])
+      rows.concat(parse_result_rows(race, html))
+    end
+    rows
+  end
+
+  def parse_result_rows(race, html)
+    table_html = extract_result_table(html)
+    return [] if table_html.nil?
+
+    tr_htmls = table_html.scan(/<tr[^>]*>(.*?)<\/tr>/im).flatten
+    parsed = tr_htmls.map { |tr| parse_result_row(tr) }.compact
+
+    parsed.map do |entry|
+      {
+        "race_date" => race["race_date"],
+        "venue" => race["venue"],
+        "race_number" => race["race_number"],
+        "racedetail_id" => race["racedetail_id"],
+        "show_result_url" => race["show_result_url"],
+        "rank" => entry["rank"],
+        "result_status" => entry["result_status"],
+        "frame_number" => "",
+        "car_number" => entry["car_number"],
+        "player_name" => entry["player_name"],
+        "age" => "",
+        "class" => "",
+        "raw_cells" => entry["raw_cells"]
+      }
+    end
+  end
+
+  def extract_result_table(html)
+    m = html.match(/<table class="result_table">(.*?)<\/table>/im)
+    return nil if m.nil?
+
+    m[1]
+  end
+
+  def parse_result_row(tr_html)
+    cells = tr_html.scan(/<td[^>]*>(.*?)<\/td>/im).flatten
+    return nil if cells.empty?
+
+    clean = cells.map { |c| normalize_text(c) }
+    rank = clean[1].to_s
+    result_status = classify_result_status(rank)
+    return nil if result_status == "unknown"
+
+    car_number = clean[2].to_s
+    player_name = clean[3].to_s
+    return nil if car_number.empty? || player_name.empty?
+
+    {
+      "rank" => rank,
+      "result_status" => result_status,
+      "car_number" => car_number,
+      "player_name" => player_name,
+      "raw_cells" => clean.join(" | ")
+    }
+  end
+
+  def classify_result_status(rank_text)
+    return "normal" if rank_text.match?(/\A[1-7]\z/)
+    return "dq" if rank_text.include?("失")
+    return "fall" if rank_text.include?("落")
+    return "dns" if rank_text.include?("欠")
+    return "dnf" if rank_text.match?(/[棄故再]/)
+
+    "unknown"
+  end
+
+  def normalize_text(text)
+    text.to_s
+        .gsub(/<[^>]+>/, " ")
+        .gsub(/&nbsp;/i, " ")
+        .gsub(/&amp;/i, "&")
+        .gsub(/\s+/, " ")
+        .strip
+  end
+
+  def write_races_csv(date, rows)
+    path = File.join(@raw_dir, "girls_races_#{date.strftime('%Y%m%d')}.csv")
+    CSV.open(path, "w", write_headers: true, headers: RACES_HEADERS) do |csv|
+      rows.each { |r| csv << RACES_HEADERS.map { |h| r[h] } }
+    end
+  end
+
+  def write_results_csv(date, rows)
+    path = File.join(@raw_dir, "girls_results_#{date.strftime('%Y%m%d')}.csv")
+    CSV.open(path, "w", write_headers: true, headers: RESULTS_HEADERS) do |csv|
+      rows.each { |r| csv << RESULTS_HEADERS.map { |h| r[h] } }
+    end
+  end
+end
+
+options = {
+  from_date: nil,
+  to_date: nil,
+  raw_dir: File.join("data", "raw"),
+  raw_html_dir: File.join("data", "raw_html"),
+  use_cache: true,
+  sleep_sec: 0.5
+}
+
+parser = OptionParser.new do |opts|
+  opts.banner = "Usage: ruby scripts/collect_data.rb --from-date YYYY-MM-DD --to-date YYYY-MM-DD"
+  opts.on("--from-date DATE", "開始日 (YYYY-MM-DD)") { |v| options[:from_date] = v }
+  opts.on("--to-date DATE", "終了日 (YYYY-MM-DD)") { |v| options[:to_date] = v }
+  opts.on("--raw-dir DIR", "CSV出力先（girls_races/girls_results）") { |v| options[:raw_dir] = v }
+  opts.on("--raw-html-dir DIR", "HTMLキャッシュ保存先") { |v| options[:raw_html_dir] = v }
+  opts.on("--[no-]cache", "保存済みHTMLを使う（既定: true）") { |v| options[:use_cache] = v }
+  opts.on("--sleep SEC", Float, "アクセス間隔秒（既定: 0.5）") { |v| options[:sleep_sec] = v }
+end
+parser.parse!
+
+if options[:from_date].nil? || options[:to_date].nil?
+  warn parser.to_s
+  exit 1
+end
+
+DataCollector.new(
+  from_date: options[:from_date],
+  to_date: options[:to_date],
+  raw_dir: options[:raw_dir],
+  raw_html_dir: options[:raw_html_dir],
+  use_cache: options[:use_cache],
+  sleep_sec: options[:sleep_sec]
+).run

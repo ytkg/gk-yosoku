@@ -1,0 +1,23 @@
+.bundle/
+vendor/bundle/
+tmp/
+log/
+*.log
+data/raw/*
+!data/raw/.gitkeep
+data/raw_html/*
+!data/raw_html/.gitkeep
+data/raw_html/results/*
+!data/raw_html/results/.gitkeep
+data/features/*
+!data/features/.gitkeep
+
+# ML artifacts
+data/ml/*
+!data/ml/.gitkeep
+data/ml_top1/*
+!data/ml_top1/.gitkeep
+data/ml_search/
+data/ml_search_new/
+data/ml_top1_search/
+data/ml_top1_search_new/
