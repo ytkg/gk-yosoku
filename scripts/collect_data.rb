@@ -6,9 +6,9 @@ require "date"
 require "digest"
 require "fileutils"
 require "net/http"
-require "nkf"
 require "optparse"
 require "uri"
+require_relative "lib/html_utils"
 
 class DataCollector
   RACES_HEADERS = %w[
@@ -102,19 +102,7 @@ class DataCollector
     res = http.request(req)
     raise "HTTP #{res.code}: #{url}" unless res.code.to_i == 200
 
-    normalize_body(res.body, res["content-type"])
-  end
-
-  def normalize_body(body, content_type)
-    raw = body.dup
-    charset = content_type.to_s[/charset=([^\s;]+)/i, 1]
-    enc = begin
-      charset ? Encoding.find(charset) : NKF.guess(raw)
-    rescue StandardError
-      Encoding::UTF_8
-    end
-    raw.force_encoding(enc)
-    raw.encode("UTF-8", invalid: :replace, undef: :replace, replace: "")
+    GK::HtmlUtils.normalize_body(res.body, res["content-type"])
   end
 
   def extract_girls_races(html, target_date)
@@ -229,7 +217,7 @@ class DataCollector
     cells = tr_html.scan(/<td[^>]*>(.*?)<\/td>/im).flatten
     return nil if cells.empty?
 
-    clean = cells.map { |c| normalize_text(c) }
+    clean = cells.map { |c| GK::HtmlUtils.normalize_text(c) }
     rank = clean[1].to_s
     result_status = classify_result_status(rank)
     return nil if result_status == "unknown"
@@ -255,15 +243,6 @@ class DataCollector
     return "dnf" if rank_text.match?(/[棄故再]/)
 
     "unknown"
-  end
-
-  def normalize_text(text)
-    text.to_s
-        .gsub(/<[^>]+>/, " ")
-        .gsub(/&nbsp;/i, " ")
-        .gsub(/&amp;/i, "&")
-        .gsub(/\s+/, " ")
-        .strip
   end
 
   def write_races_csv(date, rows)

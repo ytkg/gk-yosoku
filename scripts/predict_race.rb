@@ -7,33 +7,17 @@ require "digest"
 require "fileutils"
 require "json"
 require "net/http"
-require "nkf"
 require "open3"
 require "optparse"
 require "tmpdir"
 require "uri"
+require_relative "lib/feature_schema"
+require_relative "lib/html_utils"
+require_relative "lib/lightgbm_utils"
 
 class RacePredictor
-  CATEGORICAL_FEATURES = %w[venue player_name mark_symbol leg_style].freeze
-  NUMERIC_FEATURES = %w[
-    race_number
-    car_number
-    hist_races
-    hist_win_rate
-    hist_top3_rate
-    hist_avg_rank
-    hist_last_rank
-    hist_recent5_weighted_avg_rank
-    hist_recent5_win_rate
-    hist_recent5_top3_rate
-    hist_days_since_last
-    race_rel_hist_win_rate_rank
-    race_rel_hist_top3_rate_rank
-    odds_2shatan_min_first
-    race_rel_odds_2shatan_rank
-    race_field_size
-  ].freeze
-  FEATURE_COLUMNS = (CATEGORICAL_FEATURES + NUMERIC_FEATURES).freeze
+  CATEGORICAL_FEATURES = GK::FeatureSchema::CATEGORICAL_FEATURES
+  FEATURE_COLUMNS = GK::FeatureSchema::FEATURE_COLUMNS
 
   def initialize(url:, model_top3:, encoders_top3:, model_top1:, encoders_top1:, raw_dir:, cache_dir:, win_temperature:, exacta_top:, trifecta_top:, use_cache:)
     @url = url
@@ -117,21 +101,9 @@ class RacePredictor
     res = http.request(req)
     raise "HTTP #{res.code}: #{url}" unless res.code.to_i == 200
 
-    html = normalize_body(res.body, res["content-type"])
+    html = GK::HtmlUtils.normalize_body(res.body, res["content-type"])
     File.write(path, html)
     html
-  end
-
-  def normalize_body(body, content_type)
-    raw = body.dup
-    charset = content_type.to_s[/charset=([^\s;]+)/i, 1]
-    enc = begin
-      charset ? Encoding.find(charset) : NKF.guess(raw)
-    rescue StandardError
-      Encoding::UTF_8
-    end
-    raw.force_encoding(enc)
-    raw.encode("UTF-8", invalid: :replace, undef: :replace, replace: "")
   end
 
   def parse_entries(html)
@@ -143,7 +115,7 @@ class RacePredictor
     table.scan(/<tr class="n\d+[^"]*">(.*?)<\/tr>/m).flatten.map do |tr|
       car = tr.match(/<td class="num"><span>(\d+)<\/span><\/td>/m)&.[](1).to_i
       next if car.zero?
-      player_name = normalize_text(tr.match(/<td class="rider bdr_r">(.*?)<\/td>/m)&.[](1).to_s.split("<br>").first)
+      player_name = GK::HtmlUtils.normalize_text(tr.match(/<td class="rider bdr_r">(.*?)<\/td>/m)&.[](1).to_s.split("<br>").first)
       mark_symbol = tr.match(/icon_t\d+">([^<]+)</m)&.[](1).to_s.strip
       leg_style = tr.match(/<td class="bdr_r">\s*(逃|両|追)\s*<\/td>/m)&.[](1).to_s.strip
       {
@@ -156,38 +128,7 @@ class RacePredictor
   end
 
   def parse_2shatan_odds(html)
-    section = html.match(/<div class="odds_contents[^"]*" id="JS_ODDSCONTENTS_2shatan">(.*?)<!-- 2車単 End -->/m)&.[](1)
-    return {} if section.nil?
-    table = section.match(/<table class="odds_table">(.*?)<\/table>/m)&.[](1)
-    return {} if table.nil?
-
-    min_by_first = {}
-    table.scan(/<tr>(.*?)<\/tr>/m).flatten.each do |tr|
-      first_car = tr.match(/<th class="n\d+">(\d+)<\/th>/)&.[](1).to_i
-      next if first_car.zero?
-
-      vals = tr.scan(/<td[^>]*>(.*?)<\/td>/m).flatten.map { |cell| parse_odds_value(cell) }.compact
-      next if vals.empty?
-      min_by_first[first_car] = vals.min
-    end
-    min_by_first
-  end
-
-  def parse_odds_value(cell_html)
-    text = normalize_text(cell_html)
-    return nil if text.empty? || text == "-"
-    m = text.match(/(\d+(?:\.\d+)?)/)
-    return nil if m.nil?
-    m[1].to_f
-  end
-
-  def normalize_text(text)
-    text.to_s
-        .gsub(/<[^>]+>/, " ")
-        .gsub(/&nbsp;/i, " ")
-        .gsub(/&amp;/i, "&")
-        .gsub(/\s+/, " ")
-        .strip
+    GK::HtmlUtils.parse_2shatan_odds(html)
   end
 
   def load_player_stats(target_date)
@@ -293,8 +234,7 @@ class RacePredictor
   end
 
   def check_lightgbm!
-    return if system("command -v lightgbm >/dev/null 2>&1")
-    raise "lightgbm command not found"
+    GK::LightGBMUtils.ensure_lightgbm!
   end
 
   def predict_scores(rows, model_path, encoders_path)
@@ -307,12 +247,12 @@ class RacePredictor
       File.open(data_tsv, "w") do |f|
         rows.each do |r|
           xs = FEATURE_COLUMNS.map do |name|
-            if CATEGORICAL_FEATURES.include?(name)
-              (encoders.fetch(name, {})[r[name].to_s] || -1).to_s
-            else
-              r[name].to_f.to_s
-            end
+          if CATEGORICAL_FEATURES.include?(name)
+            (encoders.fetch(name, {})[r[name].to_s] || -1).to_s
+          else
+            GK::FeatureSchema.to_float_string(r[name])
           end
+        end
           f.puts((["0"] + xs).join("\t"))
         end
       end

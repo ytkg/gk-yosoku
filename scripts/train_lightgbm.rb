@@ -6,28 +6,12 @@ require "fileutils"
 require "json"
 require "open3"
 require "optparse"
+require_relative "lib/feature_schema"
+require_relative "lib/lightgbm_utils"
 
 class LightGBMTrainer
-  CATEGORICAL_FEATURES = %w[venue player_name mark_symbol leg_style].freeze
-  NUMERIC_FEATURES = %w[
-    race_number
-    car_number
-    hist_races
-    hist_win_rate
-    hist_top3_rate
-    hist_avg_rank
-    hist_last_rank
-    hist_recent5_weighted_avg_rank
-    hist_recent5_win_rate
-    hist_recent5_top3_rate
-    hist_days_since_last
-    race_rel_hist_win_rate_rank
-    race_rel_hist_top3_rate_rank
-    odds_2shatan_min_first
-    race_rel_odds_2shatan_rank
-    race_field_size
-  ].freeze
-  FEATURE_COLUMNS = (CATEGORICAL_FEATURES + NUMERIC_FEATURES).freeze
+  CATEGORICAL_FEATURES = GK::FeatureSchema::CATEGORICAL_FEATURES
+  FEATURE_COLUMNS = GK::FeatureSchema::FEATURE_COLUMNS
 
   def initialize(train_csv:, valid_csv:, out_dir:, num_iterations:, learning_rate:, num_leaves:, min_data_in_leaf:, early_stopping_round:, target_col:)
     @train_csv = train_csv
@@ -72,16 +56,11 @@ class LightGBMTrainer
   private
 
   def check_lightgbm!
-    return if system("command -v lightgbm >/dev/null 2>&1")
-
-    raise "lightgbm command not found. Please install LightGBM CLI in Docker image."
+    GK::LightGBMUtils.ensure_lightgbm!(message: "lightgbm command not found. Please install LightGBM CLI in Docker image.")
   end
 
   def build_encoders(rows)
-    CATEGORICAL_FEATURES.to_h do |f|
-      values = rows.map { |r| r[f].to_s }.uniq.sort
-      [f, values.each_with_index.to_h { |v, i| [v, i] }]
-    end
+    GK::FeatureSchema.build_categorical_encoders(rows)
   end
 
   def write_encoder(encoders)
@@ -96,18 +75,12 @@ class LightGBMTrainer
           if CATEGORICAL_FEATURES.include?(name)
             (encoders[name][r[name].to_s] || -1).to_s
           else
-            to_float(r[name])
+            GK::FeatureSchema.to_float_string(r[name])
           end
         end
         f.puts(([y] + xs).join("\t"))
       end
     end
-  end
-
-  def to_float(v)
-    return "0.0" if v.nil? || v.to_s.strip.empty?
-
-    v.to_f.to_s
   end
 
   def write_config(path, train_data_path, valid_data_path, model_path, metric_path)

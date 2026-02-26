@@ -5,28 +5,12 @@ require "csv"
 require "json"
 require "open3"
 require "optparse"
+require_relative "lib/feature_schema"
+require_relative "lib/lightgbm_utils"
 
 class LightGBMEvaluator
-  CATEGORICAL_FEATURES = %w[venue player_name mark_symbol leg_style].freeze
-  NUMERIC_FEATURES = %w[
-    race_number
-    car_number
-    hist_races
-    hist_win_rate
-    hist_top3_rate
-    hist_avg_rank
-    hist_last_rank
-    hist_recent5_weighted_avg_rank
-    hist_recent5_win_rate
-    hist_recent5_top3_rate
-    hist_days_since_last
-    race_rel_hist_win_rate_rank
-    race_rel_hist_top3_rate_rank
-    odds_2shatan_min_first
-    race_rel_odds_2shatan_rank
-    race_field_size
-  ].freeze
-  FEATURE_COLUMNS = (CATEGORICAL_FEATURES + NUMERIC_FEATURES).freeze
+  CATEGORICAL_FEATURES = GK::FeatureSchema::CATEGORICAL_FEATURES
+  FEATURE_COLUMNS = GK::FeatureSchema::FEATURE_COLUMNS
 
   def initialize(model_path:, valid_csv:, encoder_path:, out_dir:, target_col:)
     @model_path = model_path
@@ -71,9 +55,7 @@ class LightGBMEvaluator
   private
 
   def check_lightgbm!
-    return if system("command -v lightgbm >/dev/null 2>&1")
-
-    raise "lightgbm command not found"
+    GK::LightGBMUtils.ensure_lightgbm!
   end
 
   def write_eval_tsv(path, rows, encoders)
@@ -84,18 +66,12 @@ class LightGBMEvaluator
           if CATEGORICAL_FEATURES.include?(name)
             (encoders.fetch(name, {})[r[name].to_s] || -1).to_s
           else
-            to_float(r[name])
+            GK::FeatureSchema.to_float_string(r[name])
           end
         end
         f.puts(([y] + xs).join("\t"))
       end
     end
-  end
-
-  def to_float(v)
-    return "0.0" if v.nil? || v.to_s.strip.empty?
-
-    v.to_f.to_s
   end
 
   def run_predict(valid_tsv, pred_path)
