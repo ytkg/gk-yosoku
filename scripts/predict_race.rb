@@ -272,10 +272,20 @@ class RacePredictor
 
   def print_rankings(race, rows)
     puts "# Race: #{race[:venue]} #{race[:race_date]} #{race[:race_number]}R (#{race[:racedetail_id]})"
+    print_entry_list(rows)
     puts "## Top1 Probability Ranking"
-    rows.sort_by { |r| -r["score_top1"] }.each_with_index do |r, idx|
-      puts format("%2d. %s %s top1=%.6f top3=%.6f mark=%s style=%s", idx + 1, r["car_number"], r["player_name"], r["score_top1"], r["score_top3"], r["mark_symbol"], r["leg_style"])
+    rank_rows = rows.sort_by { |r| -r["score_top1"] }.each_with_index.map do |r, idx|
+      [
+        (idx + 1).to_s,
+        r["car_number"].to_s,
+        r["player_name"].to_s,
+        r["mark_symbol"].to_s,
+        r["leg_style"].to_s,
+        format("%.6f", r["score_top1"].to_f),
+        format("%.6f", r["score_top3"].to_f)
+      ]
     end
+    print_table(%w[Rank Car Player Mark Style Top1 Top3], rank_rows, right_align: [0, 1, 5, 6])
   end
 
   def print_exotics(_race, rows)
@@ -301,13 +311,16 @@ class RacePredictor
       end
     end
     puts "## Exacta Top #{@exacta_top}"
-    exacta.sort_by { |x| -x[2] }.first(@exacta_top).each_with_index do |(i, j, s), idx|
-      puts format("%2d. %d-%d %.10f (%s-%s)", idx + 1, i[:car_number], j[:car_number], s, i[:player_name], j[:player_name])
+    exacta_rows = exacta.sort_by { |x| -x[2] }.first(@exacta_top).each_with_index.map do |(i, j, s), idx|
+      [(idx + 1).to_s, "#{i[:car_number]}-#{j[:car_number]}", format("%.10f", s), "#{i[:player_name]}-#{j[:player_name]}"]
     end
+    print_table(%w[Rank Bet Score Riders], exacta_rows, right_align: [0, 2])
+
     puts "## Trifecta Top #{@trifecta_top}"
-    trifecta.sort_by { |x| -x[3] }.first(@trifecta_top).each_with_index do |(i, j, k, s), idx|
-      puts format("%2d. %d-%d-%d %.10f (%s-%s-%s)", idx + 1, i[:car_number], j[:car_number], k[:car_number], s, i[:player_name], j[:player_name], k[:player_name])
+    trifecta_rows = trifecta.sort_by { |x| -x[3] }.first(@trifecta_top).each_with_index.map do |(i, j, k, s), idx|
+      [(idx + 1).to_s, "#{i[:car_number]}-#{j[:car_number]}-#{k[:car_number]}", format("%.10f", s), "#{i[:player_name]}-#{j[:player_name]}-#{k[:player_name]}"]
     end
+    print_table(%w[Rank Bet Score Riders], trifecta_rows, right_align: [0, 2])
   end
 
   def clamp01(v)
@@ -321,6 +334,50 @@ class RacePredictor
     exps = cars.to_h { |c| [c[:car_number], Math.exp(c[:top1_score] / @win_temperature)] }
     sum = exps.values.sum
     exps.transform_values { |v| v / sum }
+  end
+
+  def print_entry_list(rows)
+    puts "## Entry List"
+    entry_rows = rows.sort_by { |r| r["car_number"].to_i }.map do |r|
+      [
+        r["car_number"].to_s,
+        r["player_name"].to_s,
+        r["mark_symbol"].to_s,
+        r["leg_style"].to_s,
+        format("%.3f", r["odds_2shatan_min_first"].to_f)
+      ]
+    end
+    print_table(["Car", "Player", "Mark", "Style", "Min2TanOdds"], entry_rows, right_align: [0, 4])
+  end
+
+  def print_table(headers, rows, right_align: [])
+    matrix = [headers] + rows
+    widths = headers.each_index.map do |i|
+      matrix.map { |r| display_width(r[i].to_s) }.max
+    end
+    sep = "+-#{widths.map { |w| "-" * w }.join("-+-")}-+"
+
+    puts sep
+    puts "| #{format_row(headers, widths, right_align)} |"
+    puts sep
+    rows.each { |r| puts "| #{format_row(r, widths, right_align)} |" }
+    puts sep
+  end
+
+  def format_row(cells, widths, right_align)
+    cells.each_with_index.map do |cell, i|
+      text = cell.to_s
+      pad_display(text, widths[i], right: right_align.include?(i))
+    end.join(" | ")
+  end
+
+  def display_width(text)
+    text.each_char.sum { |ch| ch.bytesize == 1 ? 1 : 2 }
+  end
+
+  def pad_display(text, width, right: false)
+    pad = [width - display_width(text), 0].max
+    right ? (" " * pad) + text : text + (" " * pad)
   end
 end
 
