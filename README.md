@@ -51,12 +51,19 @@ make help
 ## ローカル Prediction API（Sinatra）
 
 ローカル専用で `POST /predict` を提供します（デプロイは想定しません）。
+タイムアウト秒は `GK_PREDICT_TIMEOUT_SEC`（既定: `30`）で調整できます。
 
 起動:
 
 ```bash
 bundle install
 bundle exec rackup -p 4567
+```
+
+ヘルスチェック:
+
+```bash
+curl -sS http://127.0.0.1:4567/health
 ```
 
 呼び出し例:

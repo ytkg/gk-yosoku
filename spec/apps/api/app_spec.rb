@@ -11,6 +11,16 @@ RSpec.describe GK::PredictAPI do
     GK::PredictAPI.new
   end
 
+  it "GET /health は healthy を返す" do
+    get "/health", {}, { "HTTP_HOST" => "localhost" }
+
+    expect(last_response.status).to eq(200)
+    body = JSON.parse(last_response.body)
+    expect(body["code"]).to eq("ok")
+    expect(body["message"]).to eq("healthy")
+    expect(body.dig("detail", "service")).to eq("predict-api")
+  end
+
   it "POST /predict 正常系は code=ok を返す" do
     allow(Open3).to receive(:capture3).and_return(["rankings\n", "", instance_double(Process::Status, success?: true)])
 
@@ -42,5 +52,17 @@ RSpec.describe GK::PredictAPI do
     body = JSON.parse(last_response.body)
     expect(body["code"]).to eq("invalid_request")
     expect(body["detail"]).to include("field" => "url")
+  end
+
+  it "POST /predict タイムアウト時は predict_timeout を返す" do
+    allow_any_instance_of(GK::PredictAPI).to receive(:timeout_seconds).and_return(0.01)
+    allow(Open3).to receive(:capture3) { sleep 0.05 }
+
+    post "/predict", JSON.generate("url" => "https://example.com/racedetail/0000000000000000"), { "CONTENT_TYPE" => "application/json", "HTTP_HOST" => "localhost" }
+
+    expect(last_response.status).to eq(504)
+    body = JSON.parse(last_response.body)
+    expect(body["code"]).to eq("predict_timeout")
+    expect(body["detail"]).to include("timeout_seconds")
   end
 end
