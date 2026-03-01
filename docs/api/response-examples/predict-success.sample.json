@@ -1,0 +1,45 @@
+{
+  "code": "ok",
+  "message": "prediction completed",
+  "detail": {
+    "race": {
+      "race_id": "2026-02-25-toride-01",
+      "race_date": "2026-02-25",
+      "venue": "toride",
+      "race_number": 1,
+      "racedetail_id": "26202602250100"
+    },
+    "entries": [
+      {
+        "car_number": 1,
+        "player_name": "A",
+        "mark_symbol": "◎",
+        "leg_style": "逃",
+        "odds_2shatan_min_first": 2.2
+      }
+    ],
+    "rankings": [
+      {
+        "rank": 1,
+        "car_number": 1,
+        "player_name": "A",
+        "score_top1": 0.9,
+        "score_top3": 0.95
+      }
+    ],
+    "confidence": {
+      "gap": 0.1,
+      "threshold": 0.05,
+      "action": "bet"
+    },
+    "exotics": {
+      "decision": "bet",
+      "exacta": {
+        "rows": []
+      },
+      "trifecta": {
+        "rows": []
+      }
+    }
+  }
+}

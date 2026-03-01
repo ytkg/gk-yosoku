@@ -9,6 +9,7 @@ EXOTIC_OPTS ?=
 PREDICT_OPTS ?=
 RACE_URL ?=
 PAYLOAD ?= docs/api/request-examples/predict-basic.json
+API_BASE_URL ?= http://127.0.0.1:4567
 WEAK_DROP ?= odds_2shatan_min_first
 WEIGHT_MODE ?= none
 DECAY_HALF_LIFE_DAYS ?= 120
@@ -36,15 +37,28 @@ HIT5_TOP1_ENCODERS ?= data/ml_top1/tuning_v2/trial_002/encoders.json
 
 DOCKER_RUN = docker run --rm -v "$$PWD:/app" -w /app $(IMAGE)
 DOCKER_RUN_API = docker run --rm -p 4567:4567 -v "$$PWD:/app" -w /app $(IMAGE)
+API_TIMEOUT_CHECK_CONTAINER ?= gk-yosoku-api-timeout-check
+API_PID_FILE ?= tmp/api.pid
+API_LOG_FILE ?= tmp/api.log
 
-.PHONY: help build api-start api-health api-predict collect parquet-bootstrap features features-duckdb features-duckdb-sql split split-duckdb validate-duckdb eval-duckdb backup-duckdb restore-duckdb features-exacta train eval train-top1 eval-top1 train-exacta eval-exacta-model train-dual eval-dual train-weakodds eval-weakodds train-top1-weakodds eval-top1-weakodds exotic eval-exotic exotic-weakodds eval-exotic-weakodds learn-hit5-profile learn-exacta-profile eval-exacta-profile tune tune-top1 tune-top3 tune-top3-noplayer tune-weakodds tune-top1-weakodds cv cv-top1 importance predict predict-exacta predict-balanced predict-trifecta predict-hit5 predict-hit5-profile predict-tri5 predict-weakodds test pipeline full
+ifneq (,$(wildcard .env))
+include .env
+export
+endif
+
+.PHONY: help build api-start api-start-bg api-stop api-logs api-health api-predict api-predict-timeout-check api-smoke collect parquet-bootstrap features features-duckdb features-duckdb-sql split split-duckdb validate-duckdb eval-duckdb backup-duckdb restore-duckdb features-exacta train eval train-top1 eval-top1 train-exacta eval-exacta-model train-dual eval-dual train-weakodds eval-weakodds train-top1-weakodds eval-top1-weakodds exotic eval-exotic exotic-weakodds eval-exotic-weakodds learn-hit5-profile learn-exacta-profile eval-exacta-profile tune tune-top1 tune-top3 tune-top3-noplayer tune-weakodds tune-top1-weakodds cv cv-top1 importance predict predict-exacta predict-balanced predict-trifecta predict-hit5 predict-hit5-profile predict-tri5 predict-weakodds test pipeline full
 
 help:
 	@echo "Targets:"
 	@echo "  make build"
 	@echo "  make api-start"
+	@echo "  make api-start-bg"
+	@echo "  make api-stop"
+	@echo "  make api-logs"
 	@echo "  make api-health"
 	@echo "  make api-predict PAYLOAD=docs/api/request-examples/predict-basic.json"
+	@echo "  make api-predict-timeout-check"
+	@echo "  make api-smoke"
 	@echo "  make collect   FROM=YYYY-MM-DD TO=YYYY-MM-DD SLEEP=0.2 CACHE=--cache"
 	@echo "  make parquet-bootstrap FROM=YYYY-MM-DD TO=YYYY-MM-DD LAKE_DIR=data/lake PARQUET_DB=data/duckdb/gk_yosoku.duckdb"
 	@echo "  make features  FROM=YYYY-MM-DD TO=YYYY-MM-DD"
@@ -101,16 +115,58 @@ build:
 	docker build -t $(IMAGE) .
 
 api-start:
-	$(DOCKER_RUN_API) bundle exec rackup -o 0.0.0.0 -p 4567
+	$(DOCKER_RUN_API) bundle exec rackup -s webrick -o 0.0.0.0 -p 4567
+
+api-start-bg:
+	@set -eu; \
+	mkdir -p "$$(dirname "$(API_PID_FILE)")"; \
+	if [ -f "$(API_PID_FILE)" ] && kill -0 "$$(cat "$(API_PID_FILE)")" >/dev/null 2>&1; then echo "API is already running (pid=$$(cat "$(API_PID_FILE)"))"; exit 0; fi; \
+	nohup $(DOCKER_RUN_API) bundle exec rackup -s webrick -o 0.0.0.0 -p 4567 >"$(API_LOG_FILE)" 2>&1 & echo $$! >"$(API_PID_FILE)"; \
+	for i in 1 2 3 4 5 6 7 8 9 10; do \
+		if curl -fsS "$(API_BASE_URL)/health" >/dev/null 2>&1; then echo "API started in background (pid=$$(cat "$(API_PID_FILE)"))"; exit 0; fi; \
+		sleep 1; \
+	done; \
+	echo "API startup failed. See logs: $(API_LOG_FILE)"; \
+	kill "$$(cat "$(API_PID_FILE)")" >/dev/null 2>&1 || true; \
+	rm -f "$(API_PID_FILE)"; \
+	exit 1
+
+api-stop:
+	@if [ ! -f "$(API_PID_FILE)" ]; then echo "API is not running"; exit 0; fi
+	@if kill -0 "$$(cat "$(API_PID_FILE)")" >/dev/null 2>&1; then kill "$$(cat "$(API_PID_FILE)")"; fi
+	@rm -f "$(API_PID_FILE)"
+	@echo "API stopped"
+
+api-logs:
+	@if [ ! -f "$(API_LOG_FILE)" ]; then echo "API log file not found: $(API_LOG_FILE)"; exit 1; fi
+	tail -f "$(API_LOG_FILE)"
 
 api-health:
-	curl -sS http://127.0.0.1:4567/health
+	curl -sS "$(API_BASE_URL)/health"
 
 api-predict:
 	@if [ ! -f "$(PAYLOAD)" ]; then echo "PAYLOAD file not found: $(PAYLOAD)"; exit 1; fi
-	curl -sS -X POST http://127.0.0.1:4567/predict \
+	curl -sS -X POST "$(API_BASE_URL)/predict" \
 		-H 'Content-Type: application/json' \
 		--data @"$(PAYLOAD)"
+
+api-predict-timeout-check:
+	@set -eu; \
+	mkdir -p tmp; \
+	docker rm -f "$(API_TIMEOUT_CHECK_CONTAINER)" >/dev/null 2>&1 || true; \
+	trap 'docker rm -f "$(API_TIMEOUT_CHECK_CONTAINER)" >/dev/null 2>&1 || true' EXIT; \
+	docker run -d --name "$(API_TIMEOUT_CHECK_CONTAINER)" -e GK_PREDICT_TIMEOUT_SEC=1 -p 4567:4567 -v "$$PWD:/app" -w /app "$(IMAGE)" bundle exec rackup -s webrick -o 0.0.0.0 -p 4567 >/dev/null; \
+	for i in 1 2 3 4 5 6 7 8 9 10; do \
+		if curl -fsS http://127.0.0.1:4567/health >/dev/null 2>&1; then break; fi; \
+		sleep 1; \
+	done; \
+	curl -sS -X POST http://127.0.0.1:4567/predict \
+		-H 'Content-Type: application/json' \
+		--data @docs/api/request-examples/predict-timeout-check.json > tmp/api-timeout-check.json; \
+	docker run --rm -v "$$PWD:/app" -w /app "$(IMAGE)" ruby -rjson -e 'j=JSON.parse(File.read("tmp/api-timeout-check.json")); abort("expected predict_timeout, got #{j["code"]}") unless j["code"]=="predict_timeout"; puts JSON.pretty_generate(j)'
+
+api-smoke:
+	bash scripts/api_smoke.sh
 
 collect:
 	$(DOCKER_RUN) ruby scripts/collect_data.rb \

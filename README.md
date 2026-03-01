@@ -66,6 +66,14 @@ make build
 make api-start
 ```
 
+バックグラウンド起動/停止/ログ:
+
+```bash
+make api-start-bg
+make api-logs
+make api-stop
+```
+
 ヘルスチェック:
 
 ```bash
@@ -76,6 +84,12 @@ payloadファイルで呼び出し:
 
 ```bash
 make api-predict PAYLOAD=docs/api/request-examples/predict-basic.json
+```
+
+request examples の一括スモーク検証:
+
+```bash
+make api-smoke
 ```
 
 直接 `curl` で呼び出し:
@@ -100,7 +114,11 @@ ruby scripts/predict_race.rb \
 CLI利用からAPI利用へ切り替える場合は、マイグレーションガイドを参照してください。
 
 - `docs/api/migration-cli-to-api.md`
+- `docs/api/predict-payload.md`
+- `docs/api/troubleshooting.md`
+- `docs/api/configuration.md`
 - `docs/api/request-examples/predict-basic.json`
+- `docs/api/response-examples/predict-success.sample.json`
 
 エラー確認用のpayload:
 
@@ -114,11 +132,24 @@ make api-predict PAYLOAD=docs/api/request-examples/predict-missing-url.json
 make api-predict PAYLOAD=docs/api/request-examples/predict-invalid-url.json
 ```
 
+タイムアウト挙動の確認:
+
+```bash
+make api-predict-timeout-check
+```
+
 代表的なエラーコード:
 
 - `invalid_request`: リクエスト不正（例: `url` 未指定）
 - `predict_failed`: 予測CLIの実行失敗（入力URL不正など）
 - `predict_timeout`: 予測がタイムアウト（`GK_PREDICT_TIMEOUT_SEC` 超過）
+
+設定ファイル運用:
+
+```bash
+cp .env.example .env
+make api-start
+```
 
 ## 主要コマンド（Makefile前提）
 
