@@ -1,6 +1,5 @@
 # ADR-0001: DuckDB/Parquet 中心データ基盤への移行
 
-- Status: Proposed
 - Status: Accepted
 - Date: 2026-03-01
 - Decision Makers: _TBD_
@@ -79,7 +78,7 @@
 
 ## Open Questions
 
-1. 旧CSV成果物をいつ削除するか
+なし
 
 ## 補足決定（2026-03-01）
 

@@ -69,6 +69,7 @@
 - `reports/duckdb_validation/YYYYMMDD/summary.json`
 - `reports/duckdb_validation/YYYYMMDD/diff_samples.csv`
 
-## 未決事項
+## 決定事項
 
-1. 許容誤差を列ごとに分けるか（現時点は単一閾値 `1e-9` を採用）
+1. 連続値の許容誤差は当面、単一閾値 `1e-9` を採用する
+2. 列別閾値の導入検討は、長期比較（6か月）で有意なドリフトが出た場合に再評価する

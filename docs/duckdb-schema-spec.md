@@ -75,11 +75,8 @@
 3. `top1` は各 `race_id` で合計1
 4. `top3` は各 `race_id` で合計3（不成立レース除外時の扱いは別途定義）
 
-## 6. 未決事項
-
-1. `raw_cells` の保持期間
-
-## 7. 決定事項
+## 6. 決定事項
 
 1. `class` は raw取り込み時に `class_normalized = UPPER(TRIM(class))` を生成する
 2. モデル入力への採用可否は feature_set_version ごとに判断する
+3. `raw_cells` は 180日保持し、保持期限超過分はアーカイブ後に削除する
