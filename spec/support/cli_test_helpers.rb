@@ -62,7 +62,7 @@ module CliTestHelpers
         if out_path.end_with?("summary.csv")
           File.write(out_path, "csv_rows,parquet_rows,csv_only_keys,parquet_only_keys,rank_diff,top1_diff,top3_diff\n1,1,0,0,0,0,0\n")
         elsif out_path.end_with?(".csv")
-          File.write(out_path, "race_id,car_number\nr1,1\n")
+          File.write(out_path, "race_id,race_date,venue,race_number,car_number,player_name,rank,top1,top3,mark_symbol,leg_style\nr1,2026-02-25,toride,1,1,A,1,1,1,◎,逃\n")
         else
           File.write(out_path, "fake parquet from duckdb\n")
         end

@@ -21,6 +21,7 @@ EXACTA_EVAL_OPTS ?=
 CV_OPTS ?=
 LAKE_DIR ?= data/lake
 PARQUET_DB ?= data/duckdb/gk_yosoku.duckdb
+EVAL_DUCKDB_OPTS ?=
 HIT5_PROFILE ?= data/ml/exotic_profile_hit5.json
 HIT5_LEARN_OPTS ?=
 EXACTA_PROFILE ?= data/ml/exotic_profile_exacta_hit1.json
@@ -32,7 +33,7 @@ HIT5_TOP1_ENCODERS ?= data/ml_top1/tuning_v2/trial_002/encoders.json
 
 DOCKER_RUN = docker run --rm -v "$$PWD:/app" -w /app $(IMAGE)
 
-.PHONY: help build collect parquet-bootstrap features features-duckdb split split-duckdb validate-duckdb features-exacta train eval train-top1 eval-top1 train-exacta eval-exacta-model train-dual eval-dual train-weakodds eval-weakodds train-top1-weakodds eval-top1-weakodds exotic eval-exotic exotic-weakodds eval-exotic-weakodds learn-hit5-profile learn-exacta-profile eval-exacta-profile tune tune-top1 tune-top3 tune-top3-noplayer tune-weakodds tune-top1-weakodds cv cv-top1 importance predict predict-exacta predict-balanced predict-trifecta predict-hit5 predict-hit5-profile predict-tri5 predict-weakodds test pipeline full
+.PHONY: help build collect parquet-bootstrap features features-duckdb split split-duckdb validate-duckdb eval-duckdb features-exacta train eval train-top1 eval-top1 train-exacta eval-exacta-model train-dual eval-dual train-weakodds eval-weakodds train-top1-weakodds eval-top1-weakodds exotic eval-exotic exotic-weakodds eval-exotic-weakodds learn-hit5-profile learn-exacta-profile eval-exacta-profile tune tune-top1 tune-top3 tune-top3-noplayer tune-weakodds tune-top1-weakodds cv cv-top1 importance predict predict-exacta predict-balanced predict-trifecta predict-hit5 predict-hit5-profile predict-tri5 predict-weakodds test pipeline full
 
 help:
 	@echo "Targets:"
@@ -44,6 +45,7 @@ help:
 	@echo "  make split     FROM=YYYY-MM-DD TO=YYYY-MM-DD TRAIN_TO=YYYY-MM-DD"
 	@echo "  make split-duckdb FROM=YYYY-MM-DD TO=YYYY-MM-DD TRAIN_TO=YYYY-MM-DD"
 	@echo "  make validate-duckdb FROM=YYYY-MM-DD TO=YYYY-MM-DD"
+	@echo "  make eval-duckdb FROM=YYYY-MM-DD TO=YYYY-MM-DD EVAL_DUCKDB_OPTS='--target-col top3'"
 	@echo "  make features-exacta"
 	@echo "  make train"
 	@echo "  make eval"
@@ -143,6 +145,19 @@ validate-duckdb:
 		--feature-set-version v1 \
 		--report-dir reports/duckdb_validation \
 		--db-path $(PARQUET_DB)
+
+eval-duckdb:
+	$(DOCKER_RUN) ruby scripts/evaluate_lightgbm_duckdb.rb \
+		--from-date $(FROM) \
+		--to-date $(TO) \
+		--model data/ml/model.txt \
+		--encoders data/ml/encoders.json \
+		--out-dir data/ml \
+		--target-col top3 \
+		--lake-dir $(LAKE_DIR) \
+		--feature-set-version v1 \
+		--db-path $(PARQUET_DB) \
+		$(EVAL_DUCKDB_OPTS)
 
 features-exacta:
 	$(DOCKER_RUN) ruby scripts/build_exacta_features.rb \
