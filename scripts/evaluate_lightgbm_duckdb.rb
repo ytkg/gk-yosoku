@@ -9,7 +9,9 @@ require "rbconfig"
 require_relative "lib/duckdb_runner"
 
 class DuckDBLightGBMEvaluator
-  def initialize(model_path:, encoder_path:, out_dir:, target_col:, from_date:, to_date:, lake_dir:, feature_set_version:, db_path:)
+  TEMPLATE_PATH = File.expand_path("../sql/eval_materialize.sql", __dir__)
+
+  def initialize(model_path:, encoder_path:, out_dir:, target_col:, from_date:, to_date:, lake_dir:, feature_set_version:, db_path:, sql_template:)
     @model_path = model_path
     @encoder_path = encoder_path
     @out_dir = out_dir
@@ -21,6 +23,7 @@ class DuckDBLightGBMEvaluator
     @lake_dir = lake_dir
     @feature_set_version = feature_set_version
     @db_path = db_path
+    @sql_template = sql_template
   end
 
   def run
@@ -47,15 +50,12 @@ class DuckDBLightGBMEvaluator
       "race_date=*",
       "*.parquet"
     )
-    sql = <<~SQL
-      COPY (
-        SELECT *
-        FROM read_parquet(#{GK::DuckDBRunner.sql_quote(features_glob)})
-        WHERE CAST(race_date AS DATE) BETWEEN DATE #{GK::DuckDBRunner.sql_quote(@from_date.iso8601)}
-                                        AND DATE #{GK::DuckDBRunner.sql_quote(@to_date.iso8601)}
-        ORDER BY race_date, venue, CAST(race_number AS INTEGER), CAST(car_number AS INTEGER)
-      ) TO #{GK::DuckDBRunner.sql_quote(out_csv)} (HEADER, DELIMITER ',');
-    SQL
+    sql = build_sql(
+      features_glob: features_glob,
+      from_date: @from_date.iso8601,
+      to_date: @to_date.iso8601,
+      out_csv: out_csv
+    )
     GK::DuckDBRunner.run_sql!(db_path: @db_path, sql: sql)
     out_csv
   end
@@ -73,6 +73,19 @@ class DuckDBLightGBMEvaluator
     out, err, status = Open3.capture3(*cmd)
     raise "evaluate_lightgbm failed: #{err}\n#{out}" unless status.success?
   end
+
+  def build_sql(features_glob:, from_date:, to_date:, out_csv:)
+    template = File.read(@sql_template, encoding: "UTF-8")
+    {
+      "features_glob" => features_glob,
+      "from_date" => from_date,
+      "to_date" => to_date,
+      "out_csv" => out_csv
+    }.each do |key, value|
+      template = template.gsub("{{#{key}}}", value.to_s.gsub("'", "''"))
+    end
+    template
+  end
 end
 
 options = {
@@ -84,7 +97,8 @@ options = {
   to_date: nil,
   lake_dir: File.join("data", "lake"),
   feature_set_version: "v1",
-  db_path: File.join("data", "duckdb", "gk_yosoku.duckdb")
+  db_path: File.join("data", "duckdb", "gk_yosoku.duckdb"),
+  sql_template: DuckDBLightGBMEvaluator::TEMPLATE_PATH
 }
 
 parser = OptionParser.new do |opts|
@@ -98,6 +112,7 @@ parser = OptionParser.new do |opts|
   opts.on("--lake-dir DIR", "Parquet 入力ルート") { |v| options[:lake_dir] = v }
   opts.on("--feature-set-version NAME", "feature set version (default: v1)") { |v| options[:feature_set_version] = v }
   opts.on("--db-path PATH", "DuckDB DB ファイルパス") { |v| options[:db_path] = v }
+  opts.on("--sql-template PATH", "eval SQL テンプレートファイル") { |v| options[:sql_template] = v }
 end
 parser.parse!
 
@@ -115,5 +130,6 @@ DuckDBLightGBMEvaluator.new(
   to_date: options[:to_date],
   lake_dir: options[:lake_dir],
   feature_set_version: options[:feature_set_version],
-  db_path: options[:db_path]
+  db_path: options[:db_path],
+  sql_template: options[:sql_template]
 ).run
