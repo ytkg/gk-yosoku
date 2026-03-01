@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "spec_helper"
+require_relative "../../scripts/lib/model_manifest"
 
 RSpec.describe "train/eval/tune/run_timeseries_cv" do
   it "fake lightgbmでtrain/eval/tuneを実行できる" do
@@ -28,6 +29,10 @@ RSpec.describe "train/eval/tune/run_timeseries_cv" do
       expect(File).to exist(File.join(out_dir, "model.txt"))
       expect(File).to exist(File.join(out_dir, "encoders.json"))
       expect(File).to exist(File.join(out_dir, "model_manifest.json"))
+      manifest = JSON.parse(File.read(File.join(out_dir, "model_manifest.json"), encoding: "UTF-8"))
+      GK::ModelManifest::REQUIRED_KEYS.each do |key|
+        expect(manifest).to have_key(key)
+      end
 
       _out2, err2, st2 = run_cmd(
         "ruby", "scripts/evaluate_lightgbm.rb",

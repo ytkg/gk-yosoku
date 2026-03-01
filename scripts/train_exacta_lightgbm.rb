@@ -170,6 +170,7 @@ class ExactaLightGBMTrainer
       valid_to: valid_dates.max.iso8601,
       metrics: {}
     )
+    GK::ModelManifest.validate_required_keys!(manifest)
     path = File.join(@out_dir, "model_manifest.json")
     File.write(path, JSON.pretty_generate(manifest))
   end
@@ -193,6 +194,7 @@ class ExactaLightGBMTrainer
     manifest_path = File.join(@out_dir, "model_manifest.json")
     manifest = GK::ModelManifest.load(manifest_path) || {}
     manifest["metrics"] = extract_metrics(summary)
+    GK::ModelManifest.validate_required_keys!(manifest)
     File.write(manifest_path, JSON.pretty_generate(manifest))
   end
 

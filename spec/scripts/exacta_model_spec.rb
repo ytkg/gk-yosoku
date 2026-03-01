@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "spec_helper"
+require_relative "../../scripts/lib/model_manifest"
 
 RSpec.describe "exacta model scripts" do
   it "build_exacta_features.rbで順序ペア特徴量を作成できる" do
@@ -70,6 +71,10 @@ RSpec.describe "exacta model scripts" do
       expect(File).to exist(File.join(out_dir, "feature_columns.json"))
       expect(File).to exist(File.join(out_dir, "categorical_features.json"))
       expect(File).to exist(File.join(out_dir, "model_manifest.json"))
+      manifest = JSON.parse(File.read(File.join(out_dir, "model_manifest.json"), encoding: "UTF-8"))
+      GK::ModelManifest::REQUIRED_KEYS.each do |key|
+        expect(manifest).to have_key(key)
+      end
 
       _out3, err3, st3 = run_cmd(
         "ruby", "scripts/evaluate_exacta_lightgbm.rb",
