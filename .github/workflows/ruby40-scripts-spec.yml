@@ -11,10 +11,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Restore bundler cache
+        id: bundler-cache-restore
+        uses: actions/cache/restore@v4
+        with:
+          path: .bundle-cache/ruby40
+          key: ruby40-bundle-${{ runner.os }}-${{ hashFiles('Gemfile.lock') }}
+
       - name: Run scripts specs on Ruby 4.0.1 container
         run: |
+          mkdir -p .bundle-cache/ruby40
           docker run --rm \
             -v "$PWD:/app" \
+            -v "$PWD/.bundle-cache/ruby40:/bundle-cache" \
             -w /app \
             ruby:4.0.1-slim \
             bash -lc '
@@ -26,9 +35,17 @@ jobs:
                 curl \
                 ca-certificates
               gem install bundler:2.5.6 --no-document
+              bundle _2.5.6_ config set path /bundle-cache
               bundle _2.5.6_ install
               bundle _2.5.6_ exec rspec \
                 spec/scripts/build_features_spec.rb \
                 spec/scripts/predict_race_spec.rb \
                 spec/scripts/feature_engine_common_spec.rb
             '
+
+      - name: Save bundler cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: .bundle-cache/ruby40
+          key: ruby40-bundle-${{ runner.os }}-${{ hashFiles('Gemfile.lock') }}-${{ github.run_id }}
