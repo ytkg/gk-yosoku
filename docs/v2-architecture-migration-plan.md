@@ -98,3 +98,78 @@ gk-yosoku/
 1. PR1完了まで新特徴量追加を凍結する
 2. PR2導入後は「manifestなしモデル」を本番利用禁止にする
 3. PR3完了後にGUIを載せる（逆順にしない）
+
+## DuckDB/Parquet 移行詳細
+
+### 方針
+
+- データ保存の標準を CSV から Parquet に移す
+- 結合・集計・split・検証は DuckDB で実行する
+- 学習器都合で必要な TSV/CSV は最終段だけ一時生成する
+
+### 期待効果
+
+1. 型崩れと列欠損の検知が容易になる
+2. 日次データ結合と学習データ生成が高速になる
+3. SQLを固定化することで再現性が上がる
+
+### 推奨データ配置
+
+```text
+data/
+  raw/                         # 既存CSV（移行期間は併用）
+  lake/
+    raw_results/
+      race_date=YYYY-MM-DD/*.parquet
+    races/
+      race_date=YYYY-MM-DD/*.parquet
+    features/
+      feature_set=v1/race_date=YYYY-MM-DD/*.parquet
+  marts/
+    train_valid/
+      split_id=YYYYMMDD/*.parquet
+  duckdb/
+    gk_yosoku.duckdb
+```
+
+### スキーマ方針
+
+1. 主要列は明示型で固定する（`DATE`, `INTEGER`, `DOUBLE`, `VARCHAR`）
+2. `schema_version` と `feature_set_version` を列で保持する
+3. `race_id + car_number` を特徴量行の一意キーとする
+4. 欠損許容列を明示し、非許容列は取り込み時にエラーにする
+
+### DuckDBの責務
+
+1. Parquetの参照（`read_parquet(...)`）と統合View作成
+2. 特徴量生成SQLの実行
+3. train/valid splitの生成
+4. 評価用集計（AUC前処理、hit@k計算用テーブル）
+
+### 最小SQL設計（初期）
+
+- `sql/staging_raw_results.sql`
+- `sql/features_v1.sql`
+- `sql/split_train_valid.sql`
+- `sql/eval_materialize.sql`
+
+### 段階移行（安全運用）
+
+1. Phase 1: CSV + Parquet 二重出力（同値チェック実施）
+2. Phase 2: 特徴量生成を DuckDB 優先に切替
+3. Phase 3: split/eval も DuckDB 化
+4. Phase 4: CSV中心フローを廃止し、互換用途のみに限定
+
+### 差分検証ルール
+
+1. 同日同レースで件数一致（raw/features）
+2. 重要列（`top1`, `top3`, `rank`, `car_number`）の完全一致
+3. 連続値は許容誤差 `1e-9` 以内
+
+### 実装タスク（最小）
+
+1. `scripts/lib/storage/duckdb_client.rb` を追加
+2. `scripts/lib/storage/parquet_writer.rb` を追加
+3. `make parquet-bootstrap`（初期化）を追加
+4. `make features-duckdb`（DuckDB版特徴量生成）を追加
+5. CIに「CSV版 vs DuckDB版」の整合テストを追加
