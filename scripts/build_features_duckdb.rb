@@ -128,7 +128,7 @@ options = {
   db_path: File.join("data", "duckdb", "gk_yosoku.duckdb"),
   feature_set_version: "v1",
   skip_build: false,
-  mode: "csv_bridge",
+  mode: "sql_v1",
   sql_template: DuckDBFeatureMaterializer::TEMPLATE_PATH
 }
 
@@ -143,7 +143,7 @@ parser = OptionParser.new do |opts|
   opts.on("--db-path PATH", "DuckDB DB ファイルパス") { |v| options[:db_path] = v }
   opts.on("--feature-set-version NAME", "feature set version (default: v1)") { |v| options[:feature_set_version] = v }
   opts.on("--skip-build", "build_features.rb の実行をスキップ") { options[:skip_build] = true }
-  opts.on("--mode MODE", "csv_bridge or sql_v1 (default: csv_bridge)") { |v| options[:mode] = v }
+  opts.on("--mode MODE", "csv_bridge or sql_v1 (default: sql_v1)") { |v| options[:mode] = v }
   opts.on("--sql-template PATH", "sql_v1 用SQLテンプレート") { |v| options[:sql_template] = v }
 end
 parser.parse!
