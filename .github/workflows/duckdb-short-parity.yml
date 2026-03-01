@@ -52,6 +52,15 @@ jobs:
       - name: Start parity timer
         run: echo "PARITY_STARTED=$(date +%s)" >> "$GITHUB_ENV"
 
+      - name: Restore timing history cache
+        uses: actions/cache/restore@v4
+        with:
+          path: reports/ci_timing/history.jsonl
+          key: duckdb-short-parity-history-${{ github.ref_name }}
+          restore-keys: |
+            duckdb-short-parity-history-${{ github.ref_name }}-
+            duckdb-short-parity-history-
+
       - name: Run short parity flow
         run: |
           make features FROM=2026-02-25 TO=2026-02-26
@@ -69,12 +78,43 @@ jobs:
             parity_seconds=$((parity_finished - PARITY_STARTED))
           fi
           total_seconds=$((build_seconds + parity_seconds))
+          history_path="reports/ci_timing/history.jsonl"
+          previous_total=""
+          if [ -s "${history_path}" ]; then
+            previous_total=$(ruby -rjson -e 'line=File.readlines(ARGV[0]).last; puts(JSON.parse(line)["total_seconds"])' "${history_path}" 2>/dev/null || true)
+          fi
+          delta_seconds=0
+          delta_pct="N/A"
+          warning_note=""
+          if [ -n "${previous_total}" ]; then
+            delta_seconds=$((total_seconds - previous_total))
+            if [ "${previous_total}" -gt 0 ]; then
+              delta_pct=$(ruby -e 'prev=ARGV[0].to_f; cur=ARGV[1].to_f; printf("%.1f%%", ((cur-prev)/prev)*100.0)' "${previous_total}" "${total_seconds}")
+              if ruby -e 'prev=ARGV[0].to_f; cur=ARGV[1].to_f; exit(((cur-prev)/prev) > 0.2 ? 0 : 1)' "${previous_total}" "${total_seconds}"; then
+                warning_note=":warning: total time regression detected (>20%)"
+              fi
+            fi
+          fi
+          printf '{"run_id":%s,"build_seconds":%s,"parity_seconds":%s,"total_seconds":%s}\n' \
+            "${{ github.run_id }}" "${build_seconds}" "${parity_seconds}" "${total_seconds}" >> "${history_path}"
+          recent_table=$(tail -n 20 "${history_path}" | ruby -rjson -e '
+            lines = STDIN.read.split("\n").reject(&:empty?)
+            puts "| Run | Build(s) | Parity(s) | Total(s) |"
+            puts "| ---: | ---: | ---: | ---: |"
+            lines.each do |line|
+              row = JSON.parse(line)
+              puts "| #{row["run_id"]} | #{row["build_seconds"]} | #{row["parity_seconds"]} | #{row["total_seconds"]} |"
+            end
+          ')
           cat > reports/ci_timing/duckdb_short_parity_timing.json <<JSON
           {
             "workflow": "duckdb-short-parity",
             "build_seconds": ${build_seconds},
             "parity_seconds": ${parity_seconds},
-            "total_seconds": ${total_seconds}
+            "total_seconds": ${total_seconds},
+            "previous_total_seconds": ${previous_total:-null},
+            "delta_seconds": ${delta_seconds},
+            "delta_percent": "${delta_pct}"
           }
           JSON
           {
@@ -85,6 +125,23 @@ jobs:
             echo "| image build | ${build_seconds} |"
             echo "| parity run | ${parity_seconds} |"
             echo "| total | ${total_seconds} |"
+            echo ""
+            echo "### Delta"
+            echo ""
+            if [ -n "${previous_total}" ]; then
+              echo "- previous total: ${previous_total}s"
+              echo "- delta: ${delta_seconds}s (${delta_pct})"
+            else
+              echo "- previous total: N/A (no history)"
+            fi
+            if [ -n "${warning_note}" ]; then
+              echo ""
+              echo "${warning_note}"
+            fi
+            echo ""
+            echo "### Recent runs (last 20)"
+            echo ""
+            echo "${recent_table}"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload duckdb validation reports
@@ -102,3 +159,10 @@ jobs:
           name: duckdb-short-parity-timing
           path: reports/ci_timing/duckdb_short_parity_timing.json
           if-no-files-found: warn
+
+      - name: Save timing history cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: reports/ci_timing/history.jsonl
+          key: duckdb-short-parity-history-${{ github.ref_name }}-${{ github.run_id }}
