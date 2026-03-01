@@ -26,4 +26,4 @@ RUN bundle install
 
 COPY . .
 
-CMD ["ruby", "app/main.rb"]
+CMD ["bundle", "exec", "rackup", "-s", "webrick", "-o", "0.0.0.0", "-p", "4567"]
