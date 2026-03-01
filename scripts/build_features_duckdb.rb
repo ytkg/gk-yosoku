@@ -9,7 +9,9 @@ require "rbconfig"
 require_relative "lib/duckdb_runner"
 
 class DuckDBFeatureMaterializer
-  def initialize(from_date:, to_date:, in_dir:, out_dir:, raw_html_dir:, lake_dir:, db_path:, feature_set_version:, skip_build:)
+  TEMPLATE_PATH = File.expand_path("../sql/features_v1.sql", __dir__)
+
+  def initialize(from_date:, to_date:, in_dir:, out_dir:, raw_html_dir:, lake_dir:, db_path:, feature_set_version:, skip_build:, mode:, sql_template:)
     @from_date = Date.iso8601(from_date)
     @to_date = Date.iso8601(to_date)
     raise ArgumentError, "from_date must be <= to_date" if @from_date > @to_date
@@ -21,12 +23,24 @@ class DuckDBFeatureMaterializer
     @db_path = db_path
     @feature_set_version = feature_set_version
     @skip_build = skip_build
+    @mode = mode
+    @sql_template = sql_template
   end
 
   def run
     check_duckdb!
-    run_build_features! unless @skip_build
-    (@from_date..@to_date).each { |date| materialize_date(date) }
+    case @mode
+    when "csv_bridge"
+      run_build_features! unless @skip_build
+      (@from_date..@to_date).each { |date| materialize_date(date) }
+    when "sql_v1"
+      (@from_date..@to_date).each do |date|
+        materialize_date_via_sql(date)
+        materialize_date(date)
+      end
+    else
+      raise "invalid mode: #{@mode}"
+    end
   end
 
   private
@@ -77,6 +91,31 @@ class DuckDBFeatureMaterializer
     GK::DuckDBRunner.run_sql!(db_path: @db_path, sql: sql)
     warn "features csv=#{features_csv} parquet=#{out}"
   end
+
+  def materialize_date_via_sql(date)
+    ymd = date.strftime("%Y%m%d")
+    features_csv = File.join(@out_dir, "features_#{ymd}.csv")
+    FileUtils.mkdir_p(@out_dir)
+    sql = build_sql_v1(raw_results_glob: raw_results_glob, target_date: date.iso8601, out_csv: features_csv)
+    GK::DuckDBRunner.run_sql!(db_path: @db_path, sql: sql)
+    warn "features(sql_v1) csv=#{features_csv}"
+  end
+
+  def raw_results_glob
+    File.join(@lake_dir, "raw_results", "race_date=*", "*.parquet")
+  end
+
+  def build_sql_v1(raw_results_glob:, target_date:, out_csv:)
+    template = File.read(@sql_template, encoding: "UTF-8")
+    {
+      "raw_results_glob" => raw_results_glob,
+      "target_date" => target_date,
+      "out_csv" => out_csv
+    }.each do |key, value|
+      template = template.gsub("{{#{key}}}", value.to_s.gsub("'", "''"))
+    end
+    template
+  end
 end
 
 options = {
@@ -88,7 +127,9 @@ options = {
   lake_dir: File.join("data", "lake"),
   db_path: File.join("data", "duckdb", "gk_yosoku.duckdb"),
   feature_set_version: "v1",
-  skip_build: false
+  skip_build: false,
+  mode: "csv_bridge",
+  sql_template: DuckDBFeatureMaterializer::TEMPLATE_PATH
 }
 
 parser = OptionParser.new do |opts|
@@ -102,6 +143,8 @@ parser = OptionParser.new do |opts|
   opts.on("--db-path PATH", "DuckDB DB ファイルパス") { |v| options[:db_path] = v }
   opts.on("--feature-set-version NAME", "feature set version (default: v1)") { |v| options[:feature_set_version] = v }
   opts.on("--skip-build", "build_features.rb の実行をスキップ") { options[:skip_build] = true }
+  opts.on("--mode MODE", "csv_bridge or sql_v1 (default: csv_bridge)") { |v| options[:mode] = v }
+  opts.on("--sql-template PATH", "sql_v1 用SQLテンプレート") { |v| options[:sql_template] = v }
 end
 parser.parse!
 
@@ -119,5 +162,7 @@ DuckDBFeatureMaterializer.new(
   lake_dir: options[:lake_dir],
   db_path: options[:db_path],
   feature_set_version: options[:feature_set_version],
-  skip_build: options[:skip_build]
+  skip_build: options[:skip_build],
+  mode: options[:mode],
+  sql_template: options[:sql_template]
 ).run
