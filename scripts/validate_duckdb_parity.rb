@@ -9,17 +9,9 @@ require "optparse"
 require_relative "lib/duckdb_runner"
 
 class DuckDBParityValidator
-  REQUIRED_SUMMARY_HEADERS = %w[
-    csv_rows
-    parquet_rows
-    csv_only_keys
-    parquet_only_keys
-    rank_diff
-    top1_diff
-    top3_diff
-  ].freeze
+  DEFAULT_NUMERIC_COLUMN_REGEX = /^(hist_|pair_|triplet_|odds_|race_rel_|same_meet_|recent3_vs_hist_top3_delta|mark_score|race_field_size)/.freeze
 
-  def initialize(from_date:, to_date:, csv_features_dir:, lake_dir:, feature_set_version:, report_dir:, db_path:)
+  def initialize(from_date:, to_date:, csv_features_dir:, lake_dir:, feature_set_version:, report_dir:, db_path:, numeric_tolerance:, numeric_column_regex:)
     @from_date = Date.iso8601(from_date)
     @to_date = Date.iso8601(to_date)
     raise ArgumentError, "from_date must be <= to_date" if @from_date > @to_date
@@ -29,6 +21,8 @@ class DuckDBParityValidator
     @feature_set_version = feature_set_version
     @report_dir = report_dir
     @db_path = db_path
+    @numeric_tolerance = numeric_tolerance.to_f
+    @numeric_column_regex = numeric_column_regex
   end
 
   def run
@@ -84,6 +78,8 @@ class DuckDBParityValidator
     FileUtils.mkdir_p(day_dir)
     summary_csv = File.join(day_dir, "summary.csv")
     diff_csv = File.join(day_dir, "diff_samples.csv")
+    pq_export_csv = File.join(day_dir, "parquet_export.csv")
+    numeric_diff_csv = File.join(day_dir, "numeric_diff_samples.csv")
 
     sql = <<~SQL
       CREATE OR REPLACE TEMP VIEW csv_src AS
@@ -152,20 +148,37 @@ class DuckDBParityValidator
         ORDER BY race_id, car_number
         LIMIT 100
       ) TO #{GK::DuckDBRunner.sql_quote(diff_csv)} (HEADER, DELIMITER ',');
+
+      COPY (
+        SELECT *
+        FROM pq_src
+      ) TO #{GK::DuckDBRunner.sql_quote(pq_export_csv)} (HEADER, DELIMITER ',');
     SQL
 
     GK::DuckDBRunner.run_sql!(db_path: @db_path, sql: sql)
     row = CSV.read(summary_csv, headers: true).first&.to_h || {}
-    missing = REQUIRED_SUMMARY_HEADERS.reject { |h| row.key?(h) }
-    raise "invalid summary headers: #{missing.join(',')}" unless missing.empty?
-    metric = row.transform_values(&:to_i)
+    metric = {
+      "csv_rows" => row.fetch("csv_rows", "0").to_i,
+      "parquet_rows" => row.fetch("parquet_rows", "0").to_i,
+      "csv_only_keys" => row.fetch("csv_only_keys", "0").to_i,
+      "parquet_only_keys" => row.fetch("parquet_only_keys", "0").to_i,
+      "rank_diff" => row.fetch("rank_diff", "0").to_i,
+      "top1_diff" => row.fetch("top1_diff", "0").to_i,
+      "top3_diff" => row.fetch("top3_diff", "0").to_i
+    }
+    numeric = compare_numeric_columns(csv_path, pq_export_csv, numeric_diff_csv)
+    metric["numeric_diff"] = numeric[:numeric_diff]
+    metric["numeric_columns_checked"] = numeric[:numeric_columns_checked]
+    metric["max_abs_diff_scaled_1e9"] = (numeric[:max_abs_diff] * 1_000_000_000).round
+
     ok = metric.values.all?(&:zero?) || (
       metric["csv_rows"] == metric["parquet_rows"] &&
       metric["csv_only_keys"].zero? &&
       metric["parquet_only_keys"].zero? &&
       metric["rank_diff"].zero? &&
       metric["top1_diff"].zero? &&
-      metric["top3_diff"].zero?
+      metric["top3_diff"].zero? &&
+      metric["numeric_diff"].zero?
     )
     {
       "date" => iso,
@@ -173,9 +186,68 @@ class DuckDBParityValidator
       "parquet_path" => parquet_path,
       "summary_csv" => summary_csv,
       "diff_csv" => diff_csv,
+      "numeric_diff_csv" => numeric_diff_csv,
       "metrics" => metric,
       "ok" => ok
     }
+  end
+
+  def compare_numeric_columns(csv_path, pq_export_csv, out_diff_csv)
+    csv_rows = CSV.read(csv_path, headers: true, encoding: "UTF-8")
+    pq_rows = CSV.read(pq_export_csv, headers: true, encoding: "UTF-8")
+    csv_map = csv_rows.each_with_object({}) { |r, h| h[[r["race_id"], r["car_number"]]] = r.to_h }
+    pq_map = pq_rows.each_with_object({}) { |r, h| h[[r["race_id"], r["car_number"]]] = r.to_h }
+    keys = csv_map.keys & pq_map.keys
+    if keys.empty?
+      write_numeric_diff_csv(out_diff_csv, [])
+      return { numeric_diff: 0, numeric_columns_checked: 0, max_abs_diff: 0.0 }
+    end
+
+    columns = (csv_rows.headers & pq_rows.headers).select { |h| h.match?(@numeric_column_regex) }
+    max_abs = 0.0
+    diffs = []
+    keys.sort.each do |key|
+      c = csv_map[key]
+      p = pq_map[key]
+      columns.each do |col|
+        cv = parse_float_or_nil(c[col])
+        pv = parse_float_or_nil(p[col])
+        next if cv.nil? || pv.nil?
+
+        abs = (cv - pv).abs
+        max_abs = abs if abs > max_abs
+        next if abs <= @numeric_tolerance
+
+        diffs << {
+          "race_id" => key[0],
+          "car_number" => key[1],
+          "column" => col,
+          "csv_value" => cv,
+          "parquet_value" => pv,
+          "abs_diff" => abs
+        }
+      end
+    end
+
+    write_numeric_diff_csv(out_diff_csv, diffs)
+    { numeric_diff: diffs.size, numeric_columns_checked: columns.size, max_abs_diff: max_abs }
+  end
+
+  def write_numeric_diff_csv(path, rows)
+    headers = %w[race_id car_number column csv_value parquet_value abs_diff]
+    CSV.open(path, "w") do |csv|
+      csv << headers
+      rows.first(200).each { |r| csv << headers.map { |h| r[h] } }
+    end
+  end
+
+  def parse_float_or_nil(value)
+    s = value.to_s.strip
+    return nil if s.empty?
+
+    Float(s)
+  rescue ArgumentError
+    nil
   end
 end
 
@@ -186,7 +258,9 @@ options = {
   lake_dir: File.join("data", "lake"),
   feature_set_version: "v1",
   report_dir: File.join("reports", "duckdb_validation"),
-  db_path: File.join("data", "duckdb", "gk_yosoku.duckdb")
+  db_path: File.join("data", "duckdb", "gk_yosoku.duckdb"),
+  numeric_tolerance: 1.0e-9,
+  numeric_column_regex: DuckDBParityValidator::DEFAULT_NUMERIC_COLUMN_REGEX
 }
 
 parser = OptionParser.new do |opts|
@@ -198,6 +272,8 @@ parser = OptionParser.new do |opts|
   opts.on("--feature-set-version NAME", "feature set version (default: v1)") { |v| options[:feature_set_version] = v }
   opts.on("--report-dir DIR", "検証レポート出力先") { |v| options[:report_dir] = v }
   opts.on("--db-path PATH", "DuckDB DB ファイルパス") { |v| options[:db_path] = v }
+  opts.on("--numeric-tolerance FLOAT", Float, "連続値比較の許容誤差 (default: 1e-9)") { |v| options[:numeric_tolerance] = v }
+  opts.on("--numeric-column-regex REGEX", "連続値比較対象列の正規表現") { |v| options[:numeric_column_regex] = Regexp.new(v) }
 end
 parser.parse!
 
@@ -213,5 +289,7 @@ DuckDBParityValidator.new(
   lake_dir: options[:lake_dir],
   feature_set_version: options[:feature_set_version],
   report_dir: options[:report_dir],
-  db_path: options[:db_path]
+  db_path: options[:db_path],
+  numeric_tolerance: options[:numeric_tolerance],
+  numeric_column_regex: options[:numeric_column_regex]
 ).run

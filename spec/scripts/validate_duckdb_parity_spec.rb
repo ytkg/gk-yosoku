@@ -39,6 +39,7 @@ RSpec.describe "validate_duckdb_parity.rb" do
       expect(File).to exist(File.join(report_root, "summary.json"))
       expect(File).to exist(File.join(report_root, "2026-02-25", "summary.csv"))
       expect(File).to exist(File.join(report_root, "2026-02-25", "diff_samples.csv"))
+      expect(File).to exist(File.join(report_root, "2026-02-25", "numeric_diff_samples.csv"))
     end
   end
 end
