@@ -593,6 +593,7 @@ class RacePredictor
 
     manifest_path = File.join(File.dirname(model_path), "model_manifest.json")
     manifest = GK::ModelManifest.load(manifest_path)
+    GK::ModelManifest.validate_required_keys!(manifest)
     GK::ModelManifest.validate_feature_columns!(manifest, feature_columns)
   end
 

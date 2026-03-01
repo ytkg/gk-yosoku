@@ -7,6 +7,7 @@ require "open3"
 require "optparse"
 require_relative "lib/feature_schema"
 require_relative "lib/lightgbm_utils"
+require_relative "lib/model_manifest"
 
 class LightGBMEvaluator
   def initialize(model_path:, valid_csv:, encoder_path:, out_dir:, target_col:)
@@ -41,6 +42,7 @@ class LightGBMEvaluator
     write_pred_csv(pred_csv, rows_with_score)
 
     summary = evaluate(rows_with_score)
+    summary["model_manifest"] = load_manifest_summary
     File.write(summary_path, JSON.pretty_generate(summary))
 
     warn "auc=#{format('%.6f', summary['auc'])}"
@@ -120,6 +122,19 @@ class LightGBMEvaluator
       base["top3_recall_at3"] = top3_recall_at3(rows)
     end
     base
+  end
+
+  def load_manifest_summary
+    path = File.join(File.dirname(@model_path), "model_manifest.json")
+    manifest = GK::ModelManifest.load(path)
+    return { "path" => path, "present" => false } if manifest.nil?
+
+    GK::ModelManifest.validate_required_keys!(manifest)
+    {
+      "path" => path,
+      "present" => true,
+      "summary" => GK::ModelManifest.summary(manifest)
+    }
   end
 
   def race_count(rows)
