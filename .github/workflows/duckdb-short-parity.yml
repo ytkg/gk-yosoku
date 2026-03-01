@@ -14,6 +14,9 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Start build timer
+        run: echo "BUILD_STARTED=$(date +%s)" >> "$GITHUB_ENV"
+
       - name: Build Docker image (cached)
         uses: docker/build-push-action@v6
         with:
@@ -22,6 +25,13 @@ jobs:
           tags: gk-yosoku:latest
           cache-from: type=gha,scope=duckdb-short-parity
           cache-to: type=gha,mode=max,scope=duckdb-short-parity
+
+      - name: Stop build timer
+        if: always()
+        run: |
+          build_finished=$(date +%s)
+          build_seconds=$((build_finished - BUILD_STARTED))
+          echo "BUILD_SECONDS=${build_seconds}" >> "$GITHUB_ENV"
 
       - name: Prepare short fixture data
         run: |
@@ -39,11 +49,43 @@ jobs:
           2026-02-26,toride,1,2320260225030001,u,3,normal,3,3,C,26,L1,▲ | 3 | 3 | C
           CSV
 
+      - name: Start parity timer
+        run: echo "PARITY_STARTED=$(date +%s)" >> "$GITHUB_ENV"
+
       - name: Run short parity flow
         run: |
           make features FROM=2026-02-25 TO=2026-02-26
           make features-duckdb FROM=2026-02-25 TO=2026-02-26
           make validate-duckdb FROM=2026-02-25 TO=2026-02-26
+
+      - name: Write timing report
+        if: always()
+        run: |
+          mkdir -p reports/ci_timing
+          build_seconds="${BUILD_SECONDS:-0}"
+          parity_seconds=0
+          if [ -n "${PARITY_STARTED:-}" ]; then
+            parity_finished=$(date +%s)
+            parity_seconds=$((parity_finished - PARITY_STARTED))
+          fi
+          total_seconds=$((build_seconds + parity_seconds))
+          cat > reports/ci_timing/duckdb_short_parity_timing.json <<JSON
+          {
+            "workflow": "duckdb-short-parity",
+            "build_seconds": ${build_seconds},
+            "parity_seconds": ${parity_seconds},
+            "total_seconds": ${total_seconds}
+          }
+          JSON
+          {
+            echo "## duckdb-short-parity timing"
+            echo ""
+            echo "| Step | Seconds |"
+            echo "| --- | ---: |"
+            echo "| image build | ${build_seconds} |"
+            echo "| parity run | ${parity_seconds} |"
+            echo "| total | ${total_seconds} |"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload duckdb validation reports
         if: always()
@@ -51,4 +93,12 @@ jobs:
         with:
           name: duckdb-validation-reports
           path: reports/duckdb_validation
+          if-no-files-found: warn
+
+      - name: Upload ci timing report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: duckdb-short-parity-timing
+          path: reports/ci_timing/duckdb_short_parity_timing.json
           if-no-files-found: warn
