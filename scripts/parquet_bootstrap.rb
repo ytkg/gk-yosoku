@@ -57,7 +57,9 @@ class ParquetBootstrap
     FileUtils.mkdir_p(File.dirname(out_path))
     sql = <<~SQL
       COPY (
-        SELECT *
+        SELECT
+          *,
+          UPPER(TRIM(COALESCE(class, ''))) AS class_normalized
         FROM read_csv_auto(#{GK::DuckDBRunner.sql_quote(csv_path)}, HEADER=TRUE)
       )
       TO #{GK::DuckDBRunner.sql_quote(out_path)}

@@ -73,7 +73,15 @@
 2. 欠損率（主要列）
 3. 評価指標（auc, winner_hit_rate, top3_exact_match_rate）
 
-## 未決事項
+## バックアップ/復旧運用（決定）
 
-1. 並走期間（未確定。並走は実施する）
-2. `duckdb` ファイルのバックアップ運用
+1. 週1回の定期バックアップを実施する
+2. バックアップ先は `data/duckdb_backup` とする
+3. 実行コマンド:
+   - `make backup-duckdb`
+   - `make restore-duckdb SRC=...`
+4. 復旧リハーサルは月1回実施する（手順: restore -> parity確認 -> ロールバック）
+
+## 並走期間
+
+1. 並走期間（週数）は未確定。並走は継続実施する

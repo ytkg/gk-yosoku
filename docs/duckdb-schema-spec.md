@@ -24,6 +24,7 @@
 | frame_number | INTEGER | YES | |
 | age | INTEGER | YES | |
 | class | VARCHAR | YES | |
+| class_normalized | VARCHAR | NO | `UPPER(TRIM(class))` |
 | raw_cells | VARCHAR | YES | |
 | ingested_at | TIMESTAMP | NO | |
 
@@ -76,5 +77,9 @@
 
 ## 6. 未決事項
 
-1. `class` を正規化（符号化）するタイミング
-2. `raw_cells` の保持期間
+1. `raw_cells` の保持期間
+
+## 7. 決定事項
+
+1. `class` は raw取り込み時に `class_normalized = UPPER(TRIM(class))` を生成する
+2. モデル入力への採用可否は feature_set_version ごとに判断する

@@ -78,6 +78,8 @@ make features-duckdb FROM=2025-01-01 TO=2026-02-25
 make split-duckdb FROM=2025-01-01 TO=2026-02-25 TRAIN_TO=2026-01-31
 make validate-duckdb FROM=2025-01-01 TO=2026-02-25
 make eval-duckdb FROM=2026-02-01 TO=2026-02-25
+make backup-duckdb
+make restore-duckdb SRC=data/duckdb_backup/gk_yosoku_YYYYMMDDTHHMMSSZ.duckdb
 ```
 
 補足:
@@ -86,6 +88,8 @@ make eval-duckdb FROM=2026-02-01 TO=2026-02-25
 - `make split-duckdb`: `data/lake/features` から `train.csv` / `valid.csv` と mart Parquet を作成
 - `make validate-duckdb`: CSV features と Parquet features の差分検証レポートを作成
 - `make eval-duckdb`: Parquet features から検証CSVを生成して `evaluate_lightgbm.rb` を実行
+- `make backup-duckdb`: DuckDB本体のバックアップを作成
+- `make restore-duckdb`: バックアップから DuckDB 本体を復元
 - DBファイル既定値: `data/duckdb/gk_yosoku.duckdb`
 
 補足:
