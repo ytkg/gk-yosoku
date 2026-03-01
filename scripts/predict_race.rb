@@ -260,6 +260,7 @@ class RacePredictor
     hist_recent5_top3_rate_f = recent_rate_smoothed_f(st, 3, 5, hist_top3_rate_f, RECENT_PRIOR_STRENGTH)
     pair_ctx = pair_context(entry[:player_name], entries, stats, hist_top3_rate_f, global_top3_prior)
     triplet_ctx = triplet_context(entry[:player_name], entries, stats, hist_top3_rate_f, global_top3_prior)
+    same_meet_avg_rank_f = same_meet_avg_rank(race, entry[:player_name])
 
     {
       "race_id" => race[:race_id],
@@ -290,7 +291,7 @@ class RacePredictor
       "same_meet_prev_day_top1" => (same_meet_prev_day_rank(race, entry[:player_name]) == 1 ? 1 : 0).to_s,
       "same_meet_prev_day_top3" => ((1..3).cover?(same_meet_prev_day_rank(race, entry[:player_name])) ? 1 : 0).to_s,
       "same_meet_races" => same_meet_stats(race, entry[:player_name])[:count].to_s,
-      "same_meet_avg_rank" => format("%.6f", same_meet_avg_rank(race, entry[:player_name])),
+      "same_meet_avg_rank" => same_meet_avg_rank_f.zero? ? "0.0" : format("%.6f", same_meet_avg_rank_f),
       "same_meet_prev_day_rank_inv" => "0.0",
       "same_meet_recent3_synergy" => "0.0",
       "pair_hist_count_total" => format("%.6f", pair_ctx[:count_total]),
@@ -1094,6 +1095,7 @@ rescue StandardError => e
   exit 1
 end
 
+if __FILE__ == $PROGRAM_NAME
 options = {
   url: nil,
   api_url: nil,
@@ -1234,3 +1236,4 @@ RacePredictor.new(
   trifecta_third_exp: options[:trifecta_third_exp],
   output_json: options[:output_json]
 ).run
+end

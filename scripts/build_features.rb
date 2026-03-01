@@ -604,28 +604,30 @@ class FeatureBuilder
   end
 end
 
-options = {
-  from_date: Date.today.iso8601,
-  to_date: Date.today.iso8601,
-  in_dir: File.join("data", "raw"),
-  out_dir: File.join("data", "features"),
-  raw_html_dir: File.join("data", "raw_html")
-}
+if __FILE__ == $PROGRAM_NAME
+  options = {
+    from_date: Date.today.iso8601,
+    to_date: Date.today.iso8601,
+    in_dir: File.join("data", "raw"),
+    out_dir: File.join("data", "features"),
+    raw_html_dir: File.join("data", "raw_html")
+  }
 
-parser = OptionParser.new do |opts|
-  opts.banner = "Usage: ruby scripts/build_features.rb --from-date YYYY-MM-DD --to-date YYYY-MM-DD"
-  opts.on("--from-date DATE", "開始日 (YYYY-MM-DD)") { |v| options[:from_date] = v }
-  opts.on("--to-date DATE", "終了日 (YYYY-MM-DD)") { |v| options[:to_date] = v }
-  opts.on("--in-dir DIR", "girls_results CSVの場所") { |v| options[:in_dir] = v }
-  opts.on("--out-dir DIR", "features CSV出力先") { |v| options[:out_dir] = v }
-  opts.on("--raw-html-dir DIR", "result HTMLキャッシュの場所") { |v| options[:raw_html_dir] = v }
+  parser = OptionParser.new do |opts|
+    opts.banner = "Usage: ruby scripts/build_features.rb --from-date YYYY-MM-DD --to-date YYYY-MM-DD"
+    opts.on("--from-date DATE", "開始日 (YYYY-MM-DD)") { |v| options[:from_date] = v }
+    opts.on("--to-date DATE", "終了日 (YYYY-MM-DD)") { |v| options[:to_date] = v }
+    opts.on("--in-dir DIR", "girls_results CSVの場所") { |v| options[:in_dir] = v }
+    opts.on("--out-dir DIR", "features CSV出力先") { |v| options[:out_dir] = v }
+    opts.on("--raw-html-dir DIR", "result HTMLキャッシュの場所") { |v| options[:raw_html_dir] = v }
+  end
+  parser.parse!
+
+  FeatureBuilder.new(
+    from_date: options[:from_date],
+    to_date: options[:to_date],
+    in_dir: options[:in_dir],
+    out_dir: options[:out_dir],
+    raw_html_dir: options[:raw_html_dir]
+  ).run
 end
-parser.parse!
-
-FeatureBuilder.new(
-  from_date: options[:from_date],
-  to_date: options[:to_date],
-  in_dir: options[:in_dir],
-  out_dir: options[:out_dir],
-  raw_html_dir: options[:raw_html_dir]
-).run
