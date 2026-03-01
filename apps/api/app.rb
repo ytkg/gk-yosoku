@@ -1,0 +1,83 @@
+# frozen_string_literal: true
+
+require "json"
+require "open3"
+require "rbconfig"
+require "sinatra/base"
+require_relative "../../scripts/lib/predict_command_builder"
+
+module GK
+  class PredictAPI < Sinatra::Base
+    configure do
+      set :show_exceptions, false
+      set :protection, false
+    end
+
+    before do
+      content_type :json
+    end
+
+    post "/predict" do
+      payload = parse_json_body(request.body.read)
+      url = payload["url"].to_s
+      if url.empty?
+        status 422
+        return json_error("invalid_request", "url is required", { "field" => "url" })
+      end
+
+      cmd = [RbConfig.ruby, "scripts/predict_race.rb", *GK::PredictCommandBuilder.build(payload)]
+      out, err, st = Open3.capture3(*cmd)
+
+      if st.success?
+        status 200
+        return JSON.generate(
+          "code" => "ok",
+          "message" => "prediction completed",
+          "detail" => {
+            "stdout" => out,
+            "stderr" => err
+          }
+        )
+      end
+
+      status 422
+      json_error(
+        "predict_failed",
+        "prediction command failed",
+        {
+          "stdout" => out,
+          "stderr" => err,
+          "exit_status" => st.exitstatus
+        }
+      )
+    end
+
+    error JSON::ParserError do
+      status 400
+      json_error("invalid_json", "request body must be valid JSON", {})
+    end
+
+    error StandardError do
+      status 500
+      json_error("internal_error", env["sinatra.error"].message, {})
+    end
+
+    run! if app_file == $PROGRAM_NAME
+
+    private
+
+    def parse_json_body(raw)
+      return {} if raw.to_s.strip.empty?
+
+      JSON.parse(raw)
+    end
+
+    def json_error(code, message, detail)
+      JSON.generate(
+        "code" => code,
+        "message" => message,
+        "detail" => detail
+      )
+    end
+  end
+end

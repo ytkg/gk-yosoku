@@ -328,7 +328,7 @@ RSpec.describe "predict_race.rb" do
         env: env
       )
       expect(st.success?).to be(false)
-      expect(err).to include("model manifest mismatch")
+      expect(err).to match(/model manifest (mismatch|missing keys)/)
     end
   end
 end

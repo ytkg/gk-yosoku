@@ -48,6 +48,36 @@ make build
 make help
 ```
 
+## ローカル Prediction API（Sinatra）
+
+ローカル専用で `POST /predict` を提供します（デプロイは想定しません）。
+
+起動:
+
+```bash
+bundle install
+bundle exec rackup -p 4567
+```
+
+呼び出し例:
+
+```bash
+curl -sS -X POST http://127.0.0.1:4567/predict \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "url": "https://keirin.kdreams.jp/toride/racedetail/2320260225030001/",
+    "use_cache": true
+  }'
+```
+
+CLIからAPI経由で実行する場合:
+
+```bash
+ruby scripts/predict_race.rb \
+  --url https://keirin.kdreams.jp/toride/racedetail/2320260225030001/ \
+  --api-url http://127.0.0.1:4567/predict
+```
+
 ## 主要コマンド（Makefile前提）
 
 ### 1. データ取得

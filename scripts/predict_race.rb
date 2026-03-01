@@ -955,8 +955,40 @@ class RacePredictor
   end
 end
 
+def run_via_api!(api_url, options)
+  uri = URI.parse(api_url)
+  payload = options.reject { |k, _| k == :api_url }.transform_keys(&:to_s)
+
+  http = Net::HTTP.new(uri.host, uri.port)
+  http.use_ssl = uri.scheme == "https"
+  req = Net::HTTP::Post.new(uri.request_uri)
+  req["Content-Type"] = "application/json"
+  req.body = JSON.generate(payload)
+  res = http.request(req)
+  body = JSON.parse(res.body)
+
+  if res.code.to_i == 200 && body["code"] == "ok"
+    detail = body["detail"] || {}
+    print(detail["stdout"].to_s)
+    warn(detail["stderr"].to_s) unless detail["stderr"].to_s.empty?
+    return
+  end
+
+  warn("#{body["code"]}: #{body["message"]}")
+  warn(JSON.pretty_generate(body["detail"])) unless body["detail"].nil?
+  exit 1
+rescue JSON::ParserError
+  warn "invalid API response: non-JSON body"
+  warn res.body.to_s if defined?(res)
+  exit 1
+rescue StandardError => e
+  warn "api request failed: #{e.message}"
+  exit 1
+end
+
 options = {
   url: nil,
+  api_url: nil,
   model_top3: File.join("data", "ml", "model.txt"),
   encoders_top3: File.join("data", "ml", "encoders.json"),
   model_top1: File.join("data", "ml_top1", "model.txt"),
@@ -988,6 +1020,7 @@ options = {
 parser = OptionParser.new do |opts|
   opts.banner = "Usage: ruby scripts/predict_race.rb --url https://keirin.kdreams.jp/.../racedetail/xxxxxxxxxxxxxxxx/"
   opts.on("--url URL", "race detail url") { |v| options[:url] = v }
+  opts.on("--api-url URL", "call prediction API instead of local core logic") { |v| options[:api_url] = v }
   opts.on("--model-top3 PATH", "top3 model path") { |v| options[:model_top3] = v }
   opts.on("--encoders-top3 PATH", "top3 encoders path") { |v| options[:encoders_top3] = v }
   opts.on("--model-top1 PATH", "top1 model path") { |v| options[:model_top1] = v }
@@ -1054,6 +1087,11 @@ end
 if options[:exacta_min_ev] < 0.0
   warn "--exacta-min-ev must be >= 0"
   exit 1
+end
+
+if !options[:api_url].to_s.empty?
+  run_via_api!(options[:api_url], options)
+  exit 0
 end
 
 RacePredictor.new(
