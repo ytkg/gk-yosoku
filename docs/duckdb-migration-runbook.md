@@ -82,6 +82,16 @@
    - `make restore-duckdb SRC=...`
 4. 復旧リハーサルは月1回実施する（手順: restore -> parity確認 -> ロールバック）
 
+### 復旧リハーサル記録
+
+- 実施日: 2026-03-01
+- 実施者: Codex
+- 手順:
+  - `ruby scripts/backup_duckdb.rb --db-path /tmp/duckdb_rehearsal/gk_yosoku.duckdb --out-dir /tmp/duckdb_rehearsal/backup --mode backup`
+  - `ruby scripts/backup_duckdb.rb --db-path /tmp/duckdb_rehearsal/gk_yosoku.duckdb --mode restore --src /tmp/duckdb_rehearsal/backup/gk_yosoku_20260301T132649Z.duckdb`
+  - `cmp /tmp/duckdb_rehearsal/gk_yosoku.duckdb /tmp/duckdb_rehearsal/backup/gk_yosoku_20260301T132649Z.duckdb`
+- 結果: `rehearsal_ok`（バックアップ生成・復旧後一致を確認）
+
 ## CSVブリッジ廃止計画（決定）
 
 1. `csv_bridge` は移行互換用途に限定し、新規機能は `sql_v1` のみで実装する
