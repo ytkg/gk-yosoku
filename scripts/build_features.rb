@@ -189,26 +189,14 @@ class FeatureBuilder
         p[:triplet_hist_i_top3_rate_avg_f] = p[:triplet_ctx][:i_top3_rate_avg]
         p[:triplet_hist_all_top3_rate_avg_f] = p[:triplet_ctx][:all_top3_rate_avg]
       end
-      avg_rank_rank = race_rank_map(prepared, :hist_avg_rank_f, ascending: true)
-      recent3_top3_rank = race_rank_map(prepared, :hist_recent3_top3_rate_f)
-      recent5_top3_rank = race_rank_map(prepared, :hist_recent5_top3_rate_f)
-      same_meet_prev_day_rank = race_rank_map(prepared, :same_meet_prev_day_rank_f, ascending: true)
-      same_meet_avg_rank_rank = race_rank_map(prepared, :same_meet_avg_rank_f, ascending: true)
-      same_meet_recent3_synergy_rank = race_rank_map(prepared, :same_meet_recent3_synergy_f)
-      pair_i_top3_rate_rank = race_rank_map(prepared, :pair_hist_i_top3_rate_avg_f)
-      triplet_i_top3_rate_rank = race_rank_map(prepared, :triplet_hist_i_top3_rate_avg_f)
-      win_rate_rank = race_rank_map(prepared, :hist_win_rate_f)
-      top3_rate_rank = race_rank_map(prepared, :hist_top3_rate_f)
-      mark_score_rank = race_rank_map(prepared, :mark_score_f)
-      odds_rank = race_rank_map(prepared, :odds_2shatan_min_first_f, ascending: true)
-
+      race_features = []
       prepared.each do |p|
         r = p[:row]
         stats = p[:stats]
         same_meet = p[:same_meet_stats]
         rank = r["rank"].to_i
 
-        features << {
+        race_features << {
           "race_id" => race_id_from_row(r),
           "race_date" => r["race_date"],
           "venue" => r["venue"],
@@ -247,25 +235,27 @@ class FeatureBuilder
           "triplet_hist_count_total" => format("%.6f", p[:triplet_hist_count_total_f]),
           "triplet_hist_i_top3_rate_avg" => format("%.6f", p[:triplet_hist_i_top3_rate_avg_f]),
           "triplet_hist_all_top3_rate_avg" => format("%.6f", p[:triplet_hist_all_top3_rate_avg_f]),
-          "race_rel_hist_avg_rank_rank" => avg_rank_rank[r["car_number"].to_i].to_s,
-          "race_rel_hist_recent3_top3_rate_rank" => recent3_top3_rank[r["car_number"].to_i].to_s,
-          "race_rel_hist_recent5_top3_rate_rank" => recent5_top3_rank[r["car_number"].to_i].to_s,
-          "race_rel_same_meet_prev_day_rank" => same_meet_prev_day_rank[r["car_number"].to_i].to_s,
-          "race_rel_same_meet_avg_rank_rank" => same_meet_avg_rank_rank[r["car_number"].to_i].to_s,
-          "race_rel_same_meet_recent3_synergy_rank" => same_meet_recent3_synergy_rank[r["car_number"].to_i].to_s,
-          "race_rel_pair_i_top3_rate_rank" => pair_i_top3_rate_rank[r["car_number"].to_i].to_s,
-          "race_rel_triplet_i_top3_rate_rank" => triplet_i_top3_rate_rank[r["car_number"].to_i].to_s,
-          "race_rel_hist_win_rate_rank" => win_rate_rank[r["car_number"].to_i].to_s,
-          "race_rel_hist_top3_rate_rank" => top3_rate_rank[r["car_number"].to_i].to_s,
+          "race_rel_hist_avg_rank_rank" => "0",
+          "race_rel_hist_recent3_top3_rate_rank" => "0",
+          "race_rel_hist_recent5_top3_rate_rank" => "0",
+          "race_rel_same_meet_prev_day_rank" => "0",
+          "race_rel_same_meet_avg_rank_rank" => "0",
+          "race_rel_same_meet_recent3_synergy_rank" => "0",
+          "race_rel_pair_i_top3_rate_rank" => "0",
+          "race_rel_triplet_i_top3_rate_rank" => "0",
+          "race_rel_hist_win_rate_rank" => "0",
+          "race_rel_hist_top3_rate_rank" => "0",
           "mark_symbol" => p[:mark_symbol],
           "leg_style" => p[:leg_style],
           "mark_score" => format("%.1f", p[:mark_score_f]),
-          "race_rel_mark_score_rank" => mark_score_rank[r["car_number"].to_i].to_s,
+          "race_rel_mark_score_rank" => "0",
           "odds_2shatan_min_first" => format("%.6f", p[:odds_2shatan_min_first_f]),
-          "race_rel_odds_2shatan_rank" => odds_rank[r["car_number"].to_i].to_s,
+          "race_rel_odds_2shatan_rank" => "0",
           "race_field_size" => field_size.to_s
         }
       end
+      GK::FeatureEngineCommon.enrich_relative_ranks!(race_features)
+      features.concat(race_features)
 
       race_rows.each do |r|
         rank_i = r["rank"].to_i
@@ -518,18 +508,6 @@ class FeatureBuilder
     return 0.0 if recent.empty?
 
     recent.count { |rank| rank <= threshold_rank }.to_f / recent.size
-  end
-
-  def race_rank_map(prepared_rows, key, ascending: false)
-    sorted =
-      if ascending
-        prepared_rows.sort_by { |p| [p[key], p[:row]["car_number"].to_i] }
-      else
-        prepared_rows.sort_by { |p| [-p[key], p[:row]["car_number"].to_i] }
-      end
-    sorted.each_with_index.each_with_object({}) do |(p, idx), h|
-      h[p[:row]["car_number"].to_i] = idx + 1
-    end
   end
 
   def cache_context_for_race(date, race_row)
