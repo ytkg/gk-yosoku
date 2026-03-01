@@ -1,0 +1,34 @@
+name: ruby40-scripts-spec
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  scripts-spec:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run scripts specs on Ruby 4.0.1 container
+        run: |
+          docker run --rm \
+            -v "$PWD:/app" \
+            -w /app \
+            ruby:4.0.1-slim \
+            bash -lc '
+              set -euo pipefail
+              apt-get update
+              apt-get install -y --no-install-recommends \
+                build-essential \
+                git \
+                curl \
+                ca-certificates
+              gem install bundler:2.5.6 --no-document
+              bundle _2.5.6_ install
+              bundle _2.5.6_ exec rspec \
+                spec/scripts/build_features_spec.rb \
+                spec/scripts/predict_race_spec.rb \
+                spec/scripts/feature_engine_common_spec.rb
+            '
