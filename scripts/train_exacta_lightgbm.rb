@@ -7,10 +7,10 @@ require "fileutils"
 require "json"
 require "open3"
 require "optparse"
-require_relative "lib/feature_schema"
+require_relative "lib/exacta_feature_schema"
 require_relative "lib/lightgbm_utils"
 
-class LightGBMTrainer
+class ExactaLightGBMTrainer
   WEIGHT_MODES = %w[none time_decay].freeze
 
   def initialize(train_csv:, valid_csv:, out_dir:, num_iterations:, learning_rate:, num_leaves:, min_data_in_leaf:, early_stopping_round:, target_col:, drop_features:, weight_mode:, decay_half_life_days:, min_sample_weight:)
@@ -26,8 +26,8 @@ class LightGBMTrainer
     @weight_mode = weight_mode
     @decay_half_life_days = decay_half_life_days.to_f
     @min_sample_weight = min_sample_weight.to_f
-    @feature_columns = GK::FeatureSchema.feature_columns(drop_features)
-    @categorical_features = GK::FeatureSchema.categorical_features_for(@feature_columns)
+    @feature_columns = GK::ExactaFeatureSchema.feature_columns(drop_features)
+    @categorical_features = GK::ExactaFeatureSchema.categorical_features_for(@feature_columns)
     FileUtils.mkdir_p(@out_dir)
   end
 
@@ -41,8 +41,8 @@ class LightGBMTrainer
     raise "missing target column: #{@target_col}" unless train_rows.first.key?(@target_col)
     validate_weight_options!
 
-    encoders = build_encoders(train_rows)
-    write_encoder(encoders)
+    encoders = GK::ExactaFeatureSchema.build_categorical_encoders(train_rows, @feature_columns)
+    write_meta(encoders)
 
     train_data_path = File.join(@out_dir, "train.tsv")
     valid_data_path = File.join(@out_dir, "valid.tsv")
@@ -66,13 +66,10 @@ class LightGBMTrainer
     GK::LightGBMUtils.ensure_lightgbm!(message: "lightgbm command not found. Please install LightGBM CLI in Docker image.")
   end
 
-  def build_encoders(rows)
-    GK::FeatureSchema.build_categorical_encoders(rows, @feature_columns)
-  end
-
-  def write_encoder(encoders)
+  def write_meta(encoders)
     File.write(File.join(@out_dir, "encoders.json"), JSON.pretty_generate(encoders))
     File.write(File.join(@out_dir, "feature_columns.json"), JSON.pretty_generate(@feature_columns))
+    File.write(File.join(@out_dir, "categorical_features.json"), JSON.pretty_generate(@categorical_features))
   end
 
   def write_lgbm_tsv(path, rows, encoders, weights: nil)
@@ -83,7 +80,7 @@ class LightGBMTrainer
           if @categorical_features.include?(name)
             (encoders[name][r[name].to_s] || -1).to_s
           else
-            GK::FeatureSchema.to_float_string(r[name])
+            GK::ExactaFeatureSchema.to_float_string(r[name])
           end
         end
         line = [y]
@@ -112,7 +109,6 @@ class LightGBMTrainer
     CONF
     conf += "weight_column=0\n" if weighted
     File.write(path, conf)
-
     File.write(metric_path, "")
   end
 
@@ -150,8 +146,7 @@ class LightGBMTrainer
   end
 
   def run_lightgbm(conf_path)
-    cmd = ["lightgbm", "config=#{conf_path}"]
-    out, err, status = Open3.capture3(*cmd)
+    out, err, status = Open3.capture3("lightgbm", "config=#{conf_path}")
     raise "lightgbm failed: #{err}\n#{out}" unless status.success?
 
     warn out
@@ -159,15 +154,15 @@ class LightGBMTrainer
 end
 
 options = {
-  train_csv: File.join("data", "ml", "train.csv"),
-  valid_csv: File.join("data", "ml", "valid.csv"),
-  out_dir: File.join("data", "ml"),
-  num_iterations: 200,
-  learning_rate: 0.05,
-  num_leaves: 31,
+  train_csv: File.join("data", "ml_exacta", "train.csv"),
+  valid_csv: File.join("data", "ml_exacta", "valid.csv"),
+  out_dir: File.join("data", "ml_exacta"),
+  num_iterations: 400,
+  learning_rate: 0.03,
+  num_leaves: 63,
   min_data_in_leaf: 20,
   early_stopping_round: 30,
-  target_col: "top3",
+  target_col: GK::ExactaFeatureSchema::TARGET_COLUMN,
   drop_features: [],
   weight_mode: "none",
   decay_half_life_days: 120.0,
@@ -175,7 +170,7 @@ options = {
 }
 
 parser = OptionParser.new do |opts|
-  opts.banner = "Usage: ruby scripts/train_lightgbm.rb [options]"
+  opts.banner = "Usage: ruby scripts/train_exacta_lightgbm.rb [options]"
   opts.on("--train-csv PATH", "train.csv path") { |v| options[:train_csv] = v }
   opts.on("--valid-csv PATH", "valid.csv path") { |v| options[:valid_csv] = v }
   opts.on("--out-dir DIR", "output dir") { |v| options[:out_dir] = v }
@@ -184,7 +179,7 @@ parser = OptionParser.new do |opts|
   opts.on("--num-leaves N", Integer, "num leaves") { |v| options[:num_leaves] = v }
   opts.on("--min-data-in-leaf N", Integer, "minimum data in leaf") { |v| options[:min_data_in_leaf] = v }
   opts.on("--early-stopping-round N", Integer, "early stopping rounds") { |v| options[:early_stopping_round] = v }
-  opts.on("--target-col NAME", "target column name (top3 or top1)") { |v| options[:target_col] = v }
+  opts.on("--target-col NAME", "target column name (default: exacta_top1)") { |v| options[:target_col] = v }
   opts.on("--drop-features LIST", "comma separated feature names to exclude") { |v| options[:drop_features] = v.split(",").map(&:strip).reject(&:empty?) }
   opts.on("--weight-mode MODE", "sample weight mode: none or time_decay (default: none)") { |v| options[:weight_mode] = v }
   opts.on("--decay-half-life-days N", Float, "half life days for time_decay weights (default: 120)") { |v| options[:decay_half_life_days] = v }
@@ -192,7 +187,7 @@ parser = OptionParser.new do |opts|
 end
 parser.parse!
 
-LightGBMTrainer.new(
+ExactaLightGBMTrainer.new(
   train_csv: options[:train_csv],
   valid_csv: options[:valid_csv],
   out_dir: options[:out_dir],

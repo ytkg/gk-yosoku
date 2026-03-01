@@ -1,7 +1,9 @@
 GEM
   remote: https://rubygems.org/
   specs:
+    csv (3.3.5)
     diff-lcs (1.6.2)
+    nkf (0.2.0)
     rake (13.3.1)
     rspec (3.13.2)
       rspec-core (~> 3.13.0)
@@ -21,11 +23,13 @@ PLATFORMS
   ruby
 
 DEPENDENCIES
+  csv
+  nkf
   rake
   rspec
 
 RUBY VERSION
-   ruby 3.3.1p0
+   ruby 4.0.1p0
 
 BUNDLED WITH
    2.5.6

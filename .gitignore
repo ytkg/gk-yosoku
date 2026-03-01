@@ -3,21 +3,30 @@ vendor/bundle/
 tmp/
 log/
 *.log
+.DS_Store
+
+# Scraped raw data (local only)
 data/raw/*
 !data/raw/.gitkeep
 data/raw_html/*
 !data/raw_html/.gitkeep
 data/raw_html/results/*
 !data/raw_html/results/.gitkeep
+
+# Feature dataset
 data/features/*
 !data/features/.gitkeep
 
-# ML artifacts
+# Canonical model artifacts (track only .gitkeep)
 data/ml/*
 !data/ml/.gitkeep
 data/ml_top1/*
 !data/ml_top1/.gitkeep
-data/ml_search/
-data/ml_search_new/
-data/ml_top1_search/
-data/ml_top1_search_new/
+
+# Derived ML/experiment outputs
+data/experiments/
+data/ml_*/
+data/ml_top1_*/
+
+# Temporary work directories
+data/tmp*/

@@ -9,15 +9,14 @@ require_relative "lib/feature_schema"
 require_relative "lib/lightgbm_utils"
 
 class LightGBMEvaluator
-  CATEGORICAL_FEATURES = GK::FeatureSchema::CATEGORICAL_FEATURES
-  FEATURE_COLUMNS = GK::FeatureSchema::FEATURE_COLUMNS
-
   def initialize(model_path:, valid_csv:, encoder_path:, out_dir:, target_col:)
     @model_path = model_path
     @valid_csv = valid_csv
     @encoder_path = encoder_path
     @out_dir = out_dir
     @target_col = target_col
+    @feature_columns = load_feature_columns
+    @categorical_features = GK::FeatureSchema.categorical_features_for(@feature_columns)
   end
 
   def run
@@ -62,8 +61,8 @@ class LightGBMEvaluator
     File.open(path, "w") do |f|
       rows.each do |r|
         y = r[@target_col].to_i
-        xs = FEATURE_COLUMNS.map do |name|
-          if CATEGORICAL_FEATURES.include?(name)
+        xs = @feature_columns.map do |name|
+          if @categorical_features.include?(name)
             (encoders.fetch(name, {})[r[name].to_s] || -1).to_s
           else
             GK::FeatureSchema.to_float_string(r[name])
@@ -90,6 +89,13 @@ class LightGBMEvaluator
 
   def read_scores(path)
     File.readlines(path, chomp: true).map(&:to_f)
+  end
+
+  def load_feature_columns
+    path = File.join(File.dirname(@model_path), "feature_columns.json")
+    return GK::FeatureSchema::FEATURE_COLUMNS unless File.exist?(path)
+
+    JSON.parse(File.read(path, encoding: "UTF-8"))
   end
 
   def write_pred_csv(path, rows)
