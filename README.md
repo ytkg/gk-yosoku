@@ -72,7 +72,13 @@ make api-start
 make api-health
 ```
 
-呼び出し例:
+payloadファイルで呼び出し:
+
+```bash
+make api-predict PAYLOAD=docs/api/request-examples/predict-basic.json
+```
+
+直接 `curl` で呼び出し:
 
 ```bash
 curl -sS -X POST http://127.0.0.1:4567/predict \
@@ -94,6 +100,7 @@ ruby scripts/predict_race.rb \
 CLI利用からAPI利用へ切り替える場合は、マイグレーションガイドを参照してください。
 
 - `docs/api/migration-cli-to-api.md`
+- `docs/api/request-examples/predict-basic.json`
 
 ## 主要コマンド（Makefile前提）
 
