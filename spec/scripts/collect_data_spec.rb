@@ -47,9 +47,11 @@ RSpec.describe "collect_data.rb" do
 
       races = CSV.read(File.join(raw_dir, "girls_races_#{ymd}.csv"), headers: true)
       results = CSV.read(File.join(raw_dir, "girls_results_#{ymd}.csv"), headers: true)
+      errors = CSV.read(File.join(raw_dir, "girls_errors_#{ymd}.csv"), headers: true)
       expect(races.size).to eq(1)
       expect(results.size).to eq(3)
       expect(results.map { |r| r["result_status"] }).to include("fall")
+      expect(errors.map { |r| r["stage"] }).to include("validate_results_count")
     end
   end
 
@@ -57,5 +59,36 @@ RSpec.describe "collect_data.rb" do
     _out, err, status = run_cmd("ruby", "scripts/collect_data.rb")
     expect(status.success?).to be(false)
     expect(err).to include("Usage: ruby scripts/collect_data.rb")
+  end
+
+  it "開催ページ取得失敗時も日次CSVを出力して継続できる" do
+    Dir.mktmpdir("spec-collect-fail-") do |tmp|
+      raw_dir = File.join(tmp, "raw")
+      raw_html_dir = File.join(tmp, "raw_html")
+      date = "2026-02-26"
+      ymd = "20260226"
+
+      _out, err, status = run_cmd(
+        "ruby", "scripts/collect_data.rb",
+        "--from-date", date,
+        "--to-date", date,
+        "--raw-dir", raw_dir,
+        "--raw-html-dir", raw_html_dir,
+        "--no-cache",
+        "--sleep", "0",
+        "--max-retries", "0",
+        "--retry-base-sleep", "0",
+        "--kaisai-url-template", "http://127.0.0.1:1/kaisai/%{date_yyyy}/%{date_mm}/%{date_dd}/"
+      )
+      expect(status.success?).to be(true), err
+
+      races = CSV.read(File.join(raw_dir, "girls_races_#{ymd}.csv"), headers: true)
+      results = CSV.read(File.join(raw_dir, "girls_results_#{ymd}.csv"), headers: true)
+      errors = CSV.read(File.join(raw_dir, "girls_errors_#{ymd}.csv"), headers: true)
+      expect(races.size).to eq(0)
+      expect(results.size).to eq(0)
+      expect(errors.map { |r| r["stage"] }).to include("fetch_kaisai_html")
+      expect(errors.map { |r| r["level"] }).to include("error")
+    end
   end
 end

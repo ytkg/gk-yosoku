@@ -71,6 +71,7 @@ make full FROM=2025-01-01 TO=2026-02-25 TRAIN_TO=2026-01-31 SLEEP=0.2
 
 - `data/raw/girls_races_YYYYMMDD.csv`
 - `data/raw/girls_results_YYYYMMDD.csv`
+- `data/raw/girls_errors_YYYYMMDD.csv`
 - `data/raw_html/kaisai_YYYYMMDD.html`
 - `data/raw_html/results/YYYYMMDD/result_*.html`
 
@@ -79,6 +80,7 @@ make full FROM=2025-01-01 TO=2026-02-25 TRAIN_TO=2026-01-31 SLEEP=0.2
 - `race_date`, `venue`, `race_number`, `racedetail_id`
 - `rank`, `car_number`, `player_name`
 - `result_status`（`normal`, `fall`, `dq`, `dns`, `dnf`）
+- 取得失敗・パース失敗・件数異常は `girls_errors_YYYYMMDD.csv` に記録
 
 ### 特徴量出力
 
@@ -144,7 +146,7 @@ make full FROM=2025-01-01 TO=2026-02-25 TRAIN_TO=2026-01-31 SLEEP=0.2
 - `learn_exotic_profile.rb` にランダム探索上限（`--max-trials`）を追加し、hit@1向けの大きい探索空間を現実的な時間で実行可能化
 - 2連単スコアに `exacta.second_win_exp` を追加し、2着側に top1 情報を混ぜる調整が可能に
 - exacta専用モデル（順序ペア直接学習）を追加し、`data/ml_exacta` で学習・評価可能化
-- `predict_race.rb` で exactaモデル（存在時）を2連単スコアに自動適用し、未学習時は従来合成にフォールバック
+- `predict_race.rb` で exactaモデルをオプション適用（`--exacta-model` / `make predict-exacta`）し、既定は従来合成
 
 ## 既知の方針
 

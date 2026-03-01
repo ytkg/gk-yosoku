@@ -1020,7 +1020,7 @@ options = {
   encoders_top1: File.join("data", "ml_top1", "encoders.json"),
   model_exacta: File.join("data", "ml_exacta", "model.txt"),
   encoders_exacta: File.join("data", "ml_exacta", "encoders.json"),
-  use_exacta_model: true,
+  use_exacta_model: false,
   raw_dir: File.join("data", "raw"),
   cache_dir: File.join("data", "raw_html", "predict"),
   win_temperature: nil,
@@ -1051,7 +1051,7 @@ parser = OptionParser.new do |opts|
   opts.on("--encoders-top1 PATH", "top1 encoders path") { |v| options[:encoders_top1] = v }
   opts.on("--model-exacta PATH", "exacta model path") { |v| options[:model_exacta] = v }
   opts.on("--encoders-exacta PATH", "exacta encoders path") { |v| options[:encoders_exacta] = v }
-  opts.on("--[no-]exacta-model", "use exacta model for exacta score (default: true)") { |v| options[:use_exacta_model] = v }
+  opts.on("--[no-]exacta-model", "use exacta model for exacta score (default: false)") { |v| options[:use_exacta_model] = v }
   opts.on("--raw-dir DIR", "history csv dir") { |v| options[:raw_dir] = v }
   opts.on("--cache-dir DIR", "html cache dir") { |v| options[:cache_dir] = v }
   opts.on("--win-temperature X", Float, "temperature for win softmax (default: profile or 0.15)") { |v| options[:win_temperature] = v }

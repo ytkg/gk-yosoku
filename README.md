@@ -56,6 +56,14 @@ make help
 make collect FROM=2025-01-01 TO=2025-12-31 SLEEP=0.2
 ```
 
+取得を堅牢化したい場合（リトライ・低速アクセス）:
+
+```bash
+docker run --rm -v "$PWD:/app" -w /app gk-yosoku ruby scripts/collect_data.rb \
+  --from-date 2025-01-01 --to-date 2025-12-31 \
+  --max-retries 3 --retry-base-sleep 0.5 --sleep 0.2
+```
+
 ### 2. 特徴量作成
 
 ```bash
@@ -296,8 +304,8 @@ make predict RACE_URL="https://keirin.kdreams.jp/toride/racedetail/2320260225030
 このコマンドは `data/ml/model.txt`（top3）と `data/ml_top1/model.txt`（top1）を使って、
 Top1順位と2連単/3連単候補を表示します。
 
-`data/ml_exacta/model.txt` と `data/ml_exacta/encoders.json` がある場合、2連単は exacta専用モデルを自動で使います。  
-ない場合は従来の top1/top3 合成スコアに自動フォールバックします。
+既定では2連単は従来の top1/top3 合成スコアを使います。  
+exacta専用モデルを使いたい場合は `--exacta-model`（または `make predict-exacta`）を指定してください。
 
 買い目改善オプション（例）:
 
@@ -467,8 +475,10 @@ make collect FROM=2026-01-01 TO=2026-02-25 CACHE=--no-cache SLEEP=0.1
 - `data/raw/girls_results_YYYYMMDD.csv`
 - `data/raw_html/kaisai_YYYYMMDD.html`
 - `data/raw_html/results/YYYYMMDD/result_*.html`
+- `data/raw/girls_errors_YYYYMMDD.csv`
 
 `girls_results` には `result_status`（`normal`, `fall`, `dq`, `dns`, `dnf`）を含みます。
+`girls_errors` には取得失敗・パース失敗・件数異常などの日次エラー/警告が保存されます。
 
 ### 特徴量・学習・評価
 
