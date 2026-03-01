@@ -4,13 +4,43 @@
 
 - 学習時と推論時で特徴量計算が分岐している構造を解消する
 - モデル再現性と安全な切替を担保する
-- API拡張に耐える推論基盤へ移行する
+- GUI/API拡張に耐える推論基盤へ移行する
 
-## 進捗サマリ（2026-03-01 時点）
+## v2 ディレクトリ構成案
 
-- PR1: 未完了
-- PR2: 未完了
-- PR3: 完了（Issue #33 クローズ済み）
+```text
+gk-yosoku/
+  apps/
+    api/                     # 推論API（JSON契約）
+    cli/                     # 運用CLI（collect/train/eval/predict）
+  core/
+    domain/                  # Race, Entry, Prediction等のドメインモデル
+    features/                # 学習・推論で共通の特徴量計算（単一実装）
+    models/                  # LightGBMラッパ、推論器
+    scoring/                 # exacta/trifectaスコアリング
+    schemas/                 # 入出力スキーマ（バージョン付き）
+  pipelines/
+    collect/
+    build_features/
+    train/
+    evaluate/
+    promote/
+  infra/
+    storage/                 # DuckDB/Parquetアクセス
+    registry/                # model registry実装
+  configs/
+    feature_sets/
+    training/
+    presets/
+  data/
+    raw/
+    lake/                    # parquet
+    marts/
+  tests/
+    unit/
+    integration/
+    contract/
+```
 
 ## PR1（最優先）: Feature Engine単一化
 
@@ -50,24 +80,24 @@
 
 ### 目的
 
-- API利用の安定基盤化
+- GUI/外部連携の安定基盤化
 
-### 実施結果（完了）
+### 作業
 
 1. `apps/api` に `POST /predict` を実装（JSON I/O固定）
-2. `predict_race.rb` に API呼び出しオプションを追加
-3. contract test を追加し、レスポンス契約をJSON Schemaで固定
-4. `make` ベースの運用導線（起動/health/predict/smoke）を整備
+2. `predict_race.rb` はAPI内部ユースケースを呼ぶ薄いCLIへ変更
+3. contract test を追加（正常系/異常系）
 
-### 完了Issue
+### 受け入れ条件
 
-- `#33`, `#34`, `#35`, `#36`, `#38`, `#39`, `#40`, `#41`, `#42`, `#43`, `#44`, `#45`, `#46`, `#47`
+1. CLIとAPIで同一入力時に同一予測結果
+2. エラー形式統一（`code` / `message` / `detail`）
 
 ## 移行時の注意点
 
-1. PR1完了まで新特徴量追加は慎重に行う
-2. PR2導入後は「manifestなしモデル」の利用を避ける
-3. 追加施策は親Issue `#32` 配下で子Issue化して管理する
+1. PR1完了まで新特徴量追加を凍結する
+2. PR2導入後は「manifestなしモデル」を本番利用禁止にする
+3. PR3完了後にGUIを載せる（逆順にしない）
 
 ## DuckDB/Parquet 移行詳細
 
@@ -76,6 +106,65 @@
 - データ保存の標準を CSV から Parquet に移す
 - 結合・集計・split・検証は DuckDB で実行する
 - 学習器都合で必要な TSV/CSV は最終段だけ一時生成する
+
+### 期待効果
+
+1. 型崩れと列欠損の検知が容易になる
+2. 日次データ結合と学習データ生成が高速になる
+3. SQLを固定化することで再現性が上がる
+
+### 推奨データ配置
+
+```text
+data/
+  raw/                         # 既存CSV（移行期間は併用）
+  lake/
+    raw_results/
+      race_date=YYYY-MM-DD/*.parquet
+    races/
+      race_date=YYYY-MM-DD/*.parquet
+    features/
+      feature_set=v1/race_date=YYYY-MM-DD/*.parquet
+  marts/
+    train_valid/
+      split_id=YYYYMMDD/*.parquet
+  duckdb/
+    gk_yosoku.duckdb
+```
+
+### スキーマ方針
+
+1. 主要列は明示型で固定する（`DATE`, `INTEGER`, `DOUBLE`, `VARCHAR`）
+2. `schema_version` と `feature_set_version` を列で保持する
+3. `race_id + car_number` を特徴量行の一意キーとする
+4. 欠損許容列を明示し、非許容列は取り込み時にエラーにする
+
+### DuckDBの責務
+
+1. Parquetの参照（`read_parquet(...)`）と統合View作成
+2. 特徴量生成SQLの実行
+3. train/valid splitの生成
+4. 評価用集計（AUC前処理、hit@k計算用テーブル）
+
+### 最小SQL設計（初期）
+
+- `sql/staging_raw_results.sql`
+- `sql/features_v1.sql`
+- `sql/split_train_valid.sql`
+- `sql/eval_materialize.sql`
+
+### 段階移行（安全運用）
+
+1. Phase 1: CSV + Parquet 二重出力（同値チェック実施）
+2. Phase 2: 特徴量生成を DuckDB 優先に切替
+3. Phase 3: split/eval も DuckDB 化
+4. Phase 4: CSV中心フローを廃止し、互換用途のみに限定
+
+### 差分検証ルール
+
+1. 同日同レースで件数一致（raw/features）
+2. 重要列（`top1`, `top3`, `rank`, `car_number`）の完全一致
+3. 連続値は許容誤差 `1e-9` 以内
 
 ### 実装タスク（最小）
 
