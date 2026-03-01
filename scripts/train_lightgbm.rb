@@ -7,6 +7,7 @@ require "fileutils"
 require "json"
 require "open3"
 require "optparse"
+require "rbconfig"
 require_relative "lib/feature_schema"
 require_relative "lib/lightgbm_utils"
 require_relative "lib/model_manifest"
@@ -58,6 +59,7 @@ class LightGBMTrainer
 
     run_lightgbm(conf_path)
     write_manifest(train_rows, valid_rows, model_path)
+    update_manifest_metrics!(model_path)
     warn "model=#{model_path}"
     warn "metric=#{metric_path}"
   end
@@ -175,6 +177,39 @@ class LightGBMTrainer
     )
     path = File.join(@out_dir, "model_manifest.json")
     File.write(path, JSON.pretty_generate(manifest))
+  end
+
+  def update_manifest_metrics!(model_path)
+    cmd = [
+      RbConfig.ruby,
+      "scripts/evaluate_lightgbm.rb",
+      "--model", model_path,
+      "--valid-csv", @valid_csv,
+      "--encoders", File.join(@out_dir, "encoders.json"),
+      "--out-dir", @out_dir,
+      "--target-col", @target_col
+    ]
+    out, err, status = Open3.capture3(*cmd)
+    raise "evaluate_lightgbm failed: #{err}\n#{out}" unless status.success?
+
+    summary_path = File.join(@out_dir, "eval_summary.json")
+    summary = JSON.parse(File.read(summary_path, encoding: "UTF-8"))
+
+    manifest_path = File.join(@out_dir, "model_manifest.json")
+    manifest = GK::ModelManifest.load(manifest_path) || {}
+    manifest["metrics"] = extract_metrics(summary)
+    File.write(manifest_path, JSON.pretty_generate(manifest))
+  end
+
+  def extract_metrics(summary)
+    summary.slice(
+      "auc",
+      "winner_hit_rate",
+      "top3_exact_match_rate",
+      "top3_recall_at3",
+      "rows",
+      "races"
+    )
   end
 end
 
