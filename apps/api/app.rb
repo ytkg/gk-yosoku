@@ -38,18 +38,17 @@ module GK
       end
 
       cmd = [RbConfig.ruby, "scripts/predict_race.rb", *GK::PredictCommandBuilder.build(payload)]
+      cmd << "--output-json"
       timeout_sec = timeout_seconds
       out, err, st = Timeout.timeout(timeout_sec) { Open3.capture3(*cmd) }
 
       if st.success?
+        parsed = parse_predict_output(out)
         status 200
         return JSON.generate(
           "code" => "ok",
           "message" => "prediction completed",
-          "detail" => {
-            "stdout" => out,
-            "stderr" => err
-          }
+          "detail" => parsed
         )
       end
 
@@ -106,6 +105,12 @@ module GK
       raw = ENV.fetch("GK_PREDICT_TIMEOUT_SEC", "30")
       value = raw.to_i
       value.positive? ? value : 30
+    end
+
+    def parse_predict_output(out)
+      JSON.parse(out)
+    rescue JSON::ParserError
+      raise "predict output is not valid JSON"
     end
   end
 end

@@ -22,14 +22,19 @@ RSpec.describe GK::PredictAPI do
   end
 
   it "POST /predict 正常系は code=ok を返す" do
-    allow(Open3).to receive(:capture3).and_return(["rankings\n", "", instance_double(Process::Status, success?: true)])
+    stdout = JSON.generate(
+      "race" => { "race_id" => "2026-02-25-toride-01" },
+      "rankings" => [{ "rank" => 1, "car_number" => 1 }]
+    )
+    allow(Open3).to receive(:capture3).and_return([stdout, "", instance_double(Process::Status, success?: true)])
 
     post "/predict", JSON.generate("url" => "https://example.com/racedetail/0000000000000000"), { "CONTENT_TYPE" => "application/json", "HTTP_HOST" => "localhost" }
 
     expect(last_response.status).to eq(200)
     body = JSON.parse(last_response.body)
     expect(body["code"]).to eq("ok")
-    expect(body.dig("detail", "stdout")).to include("rankings")
+    expect(body.dig("detail", "race", "race_id")).to eq("2026-02-25-toride-01")
+    expect(body.dig("detail", "rankings", 0, "car_number")).to eq(1)
   end
 
   it "POST /predict 異常系は code/message/detail 形式で返す" do

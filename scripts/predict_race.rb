@@ -27,7 +27,7 @@ class RacePredictor
   PAIR_PRIOR_STRENGTH = 8.0
   TRIPLET_PRIOR_STRENGTH = 8.0
 
-  def initialize(url:, model_top3:, encoders_top3:, model_top1:, encoders_top1:, model_exacta:, encoders_exacta:, use_exacta_model:, raw_dir:, cache_dir:, win_temperature:, exacta_top:, trifecta_top:, use_cache:, no_bet_gap_threshold:, exacta_min_ev:, bankroll:, unit:, kelly_cap:, bet_style:, exotic_profile:, exacta_win_exp:, exacta_second_exp:, exacta_second_win_exp:, trifecta_win_exp:, trifecta_second_exp:, trifecta_third_exp:)
+  def initialize(url:, model_top3:, encoders_top3:, model_top1:, encoders_top1:, model_exacta:, encoders_exacta:, use_exacta_model:, raw_dir:, cache_dir:, win_temperature:, exacta_top:, trifecta_top:, use_cache:, no_bet_gap_threshold:, exacta_min_ev:, bankroll:, unit:, kelly_cap:, bet_style:, exotic_profile:, exacta_win_exp:, exacta_second_exp:, exacta_second_win_exp:, trifecta_win_exp:, trifecta_second_exp:, trifecta_third_exp:, output_json:)
     @url = url
     @model_top3 = model_top3
     @encoders_top3 = encoders_top3
@@ -58,6 +58,7 @@ class RacePredictor
     @unit = unit
     @kelly_cap = kelly_cap
     @bet_style = bet_style
+    @output_json = output_json
     @feature_columns_top3 = load_feature_columns(@model_top3, GK::FeatureSchema::FEATURE_COLUMNS)
     @feature_columns_top1 = load_feature_columns(@model_top1, GK::FeatureSchema::FEATURE_COLUMNS)
     @feature_columns_exacta = load_feature_columns(@model_exacta, GK::ExactaFeatureSchema::FEATURE_COLUMNS)
@@ -102,8 +103,12 @@ class RacePredictor
       )
     end
 
-    print_rankings(race, merged)
-    print_exotics(race, merged, pair_odds, trifecta_odds, exacta_scores)
+    if @output_json
+      puts JSON.pretty_generate(build_prediction_payload(race, merged, pair_odds, trifecta_odds, exacta_scores))
+    else
+      print_rankings(race, merged)
+      print_exotics(race, merged, pair_odds, trifecta_odds, exacta_scores)
+    end
   end
 
   private
@@ -617,6 +622,72 @@ class RacePredictor
   end
 
   def print_exotics(_race, rows, pair_odds, trifecta_odds, exacta_scores)
+    data = build_exotics_data(rows, pair_odds, trifecta_odds, exacta_scores)
+    puts format("判定: %s (1位と2位の差=%.6f %s %.6f)", data["decision"]["action"] == "skip" ? "見送り" : "購入候補", data["decision"]["gap"], data["decision"]["action"] == "skip" ? "<" : ">=", data["decision"]["threshold"])
+    exacta_rows = data["exacta"]["rows"].map do |r|
+      [
+        r["rank"].to_s,
+        r["bet"],
+        format("%.10f", r["score"]),
+        r["odds"] ? format("%.2f", r["odds"]) : "-",
+        r["ev"] ? format("%.3f", r["ev"]) : "-",
+        r["recommended_stake"].to_s,
+        r["players"].join("-")
+      ]
+    end
+    trifecta_rows = data["trifecta"]["rows"].map do |r|
+      [
+        r["rank"].to_s,
+        r["bet"],
+        format("%.10f", r["score"]),
+        r["odds"] ? format("%.2f", r["odds"]) : "-",
+        r["ev"] ? format("%.3f", r["ev"]) : "-",
+        r["recommended_stake"].to_s,
+        r["players"].join("-")
+      ]
+    end
+    exacta_lines = table_lines(%w[順位 買い目 スコア オッズ EV 推奨額 選手], exacta_rows, right_align: [0, 2, 3, 4, 5])
+    trifecta_lines = table_lines(%w[順位 買い目 スコア オッズ EV 推奨額 選手], trifecta_rows, right_align: [0, 2, 3, 4, 5])
+    exacta_lines += betting_summary_lines(exacta_rows)
+    exacta_lines += hedge_summary_lines(exacta_rows)
+    trifecta_lines += betting_summary_lines(trifecta_rows)
+    trifecta_lines += hedge_summary_lines(trifecta_rows)
+    print_side_by_side_blocks("## 2連単 Top #{@exacta_top} [#{@bet_style}/#{data["exacta"]["source"]}]", exacta_lines, "## 3連単 Top #{@trifecta_top} [#{@bet_style}]", trifecta_lines)
+  end
+
+  def build_prediction_payload(race, rows, pair_odds, trifecta_odds, exacta_scores)
+    {
+      "race" => {
+        "race_id" => race[:race_id],
+        "race_date" => race[:race_date].iso8601,
+        "venue" => race[:venue],
+        "race_number" => race[:race_number],
+        "racedetail_id" => race[:racedetail_id]
+      },
+      "entries" => rows.sort_by { |r| r["car_number"].to_i }.map do |r|
+        {
+          "car_number" => r["car_number"].to_i,
+          "player_name" => r["player_name"].to_s,
+          "mark_symbol" => r["mark_symbol"].to_s,
+          "leg_style" => r["leg_style"].to_s,
+          "odds_2shatan_min_first" => r["odds_2shatan_min_first"].to_f
+        }
+      end,
+      "rankings" => rows.sort_by { |r| -r["score_top1"].to_f }.each_with_index.map do |r, idx|
+        {
+          "rank" => idx + 1,
+          "car_number" => r["car_number"].to_i,
+          "player_name" => r["player_name"].to_s,
+          "score_top1" => r["score_top1"].to_f,
+          "score_top3" => r["score_top3"].to_f
+        }
+      end,
+      "confidence" => confidence_data(rows),
+      "exotics" => build_exotics_data(rows, pair_odds, trifecta_odds, exacta_scores)
+    }
+  end
+
+  def build_exotics_data(rows, pair_odds, trifecta_odds, exacta_scores)
     cars = rows.map do |r|
       {
         car_number: r["car_number"].to_i,
@@ -662,43 +733,45 @@ class RacePredictor
         end
       end
     end
-    print_no_bet_advice(rows)
     exacta_rows = exacta
       .sort_by { |x| exotic_sort_key(x[2], x[3], x[4]) }
       .select { |x| x[4].nil? || x[4] >= @exacta_min_ev }
       .first(@exacta_top)
       .each_with_index.map do |(i, j, score, odd, ev), idx|
       stake = suggest_stake(score, odd)
-      [
-        (idx + 1).to_s,
-        "#{i[:car_number]}-#{j[:car_number]}",
-        format("%.10f", score),
-        odd ? format("%.2f", odd) : "-",
-        ev ? format("%.3f", ev) : "-",
-        stake.to_s,
-        "#{i[:player_name]}-#{j[:player_name]}"
-      ]
+      {
+        "rank" => idx + 1,
+        "bet" => "#{i[:car_number]}-#{j[:car_number]}",
+        "score" => score,
+        "odds" => odd,
+        "ev" => ev,
+        "recommended_stake" => stake,
+        "players" => [i[:player_name], j[:player_name]]
+      }
     end
     trifecta_rows = trifecta.sort_by { |x| exotic_sort_key(x[3], x[4], x[5]) }.first(@trifecta_top).each_with_index.map do |(i, j, k, s, odd, ev), idx|
       stake = suggest_stake(s, odd)
-      [
-        (idx + 1).to_s,
-        "#{i[:car_number]}-#{j[:car_number]}-#{k[:car_number]}",
-        format("%.10f", s),
-        odd ? format("%.2f", odd) : "-",
-        ev ? format("%.3f", ev) : "-",
-        stake.to_s,
-        "#{i[:player_name]}-#{j[:player_name]}-#{k[:player_name]}"
-      ]
+      {
+        "rank" => idx + 1,
+        "bet" => "#{i[:car_number]}-#{j[:car_number]}-#{k[:car_number]}",
+        "score" => s,
+        "odds" => odd,
+        "ev" => ev,
+        "recommended_stake" => stake,
+        "players" => [i[:player_name], j[:player_name], k[:player_name]]
+      }
     end
-    exacta_lines = table_lines(%w[順位 買い目 スコア オッズ EV 推奨額 選手], exacta_rows, right_align: [0, 2, 3, 4, 5])
-    trifecta_lines = table_lines(%w[順位 買い目 スコア オッズ EV 推奨額 選手], trifecta_rows, right_align: [0, 2, 3, 4, 5])
-    exacta_lines += betting_summary_lines(exacta_rows)
-    exacta_lines += hedge_summary_lines(exacta_rows)
-    trifecta_lines += betting_summary_lines(trifecta_rows)
-    trifecta_lines += hedge_summary_lines(trifecta_rows)
     exacta_source = exacta_scores ? "exacta_model" : "heuristic"
-    print_side_by_side_blocks("## 2連単 Top #{@exacta_top} [#{@bet_style}/#{exacta_source}]", exacta_lines, "## 3連単 Top #{@trifecta_top} [#{@bet_style}]", trifecta_lines)
+    {
+      "decision" => decision_data(rows),
+      "exacta" => {
+        "source" => exacta_source,
+        "rows" => exacta_rows
+      },
+      "trifecta" => {
+        "rows" => trifecta_rows
+      }
+    }
   end
 
   def exotic_sort_key(score, odd, ev)
@@ -771,15 +844,28 @@ class RacePredictor
   end
 
   def print_no_bet_advice(rows)
+    decision = decision_data(rows)
+    if decision["action"] == "skip"
+      puts format("判定: 見送り (1位と2位の差=%.6f < %.6f)", decision["gap"], decision["threshold"])
+    else
+      puts format("判定: 購入候補 (1位と2位の差=%.6f >= %.6f)", decision["gap"], decision["threshold"])
+    end
+  end
+
+  def confidence_data(rows)
+    decision_data(rows)
+  end
+
+  def decision_data(rows)
     sorted = rows.sort_by { |r| -r["score_top1"].to_f }
     top1 = sorted[0]["score_top1"].to_f
     top2 = sorted[1] ? sorted[1]["score_top1"].to_f : 0.0
     gap = top1 - top2
-    if gap < @no_bet_gap_threshold
-      puts format("判定: 見送り (1位と2位の差=%.6f < %.6f)", gap, @no_bet_gap_threshold)
-    else
-      puts format("判定: 購入候補 (1位と2位の差=%.6f >= %.6f)", gap, @no_bet_gap_threshold)
-    end
+    {
+      "gap" => gap,
+      "threshold" => @no_bet_gap_threshold,
+      "action" => gap < @no_bet_gap_threshold ? "skip" : "bet_candidate"
+    }
   end
 
   def suggest_stake(prob, odd)
@@ -989,6 +1075,7 @@ end
 options = {
   url: nil,
   api_url: nil,
+  output_json: false,
   model_top3: File.join("data", "ml", "model.txt"),
   encoders_top3: File.join("data", "ml", "encoders.json"),
   model_top1: File.join("data", "ml_top1", "model.txt"),
@@ -1021,6 +1108,7 @@ parser = OptionParser.new do |opts|
   opts.banner = "Usage: ruby scripts/predict_race.rb --url https://keirin.kdreams.jp/.../racedetail/xxxxxxxxxxxxxxxx/"
   opts.on("--url URL", "race detail url") { |v| options[:url] = v }
   opts.on("--api-url URL", "call prediction API instead of local core logic") { |v| options[:api_url] = v }
+  opts.on("--output-json", "output structured prediction JSON") { options[:output_json] = true }
   opts.on("--model-top3 PATH", "top3 model path") { |v| options[:model_top3] = v }
   opts.on("--encoders-top3 PATH", "top3 encoders path") { |v| options[:encoders_top3] = v }
   opts.on("--model-top1 PATH", "top1 model path") { |v| options[:model_top1] = v }
@@ -1121,5 +1209,6 @@ RacePredictor.new(
   exacta_second_win_exp: options[:exacta_second_win_exp],
   trifecta_win_exp: options[:trifecta_win_exp],
   trifecta_second_exp: options[:trifecta_second_exp],
-  trifecta_third_exp: options[:trifecta_third_exp]
+  trifecta_third_exp: options[:trifecta_third_exp],
+  output_json: options[:output_json]
 ).run
