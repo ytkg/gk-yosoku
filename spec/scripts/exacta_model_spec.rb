@@ -69,6 +69,7 @@ RSpec.describe "exacta model scripts" do
       expect(File).to exist(File.join(out_dir, "encoders.json"))
       expect(File).to exist(File.join(out_dir, "feature_columns.json"))
       expect(File).to exist(File.join(out_dir, "categorical_features.json"))
+      expect(File).to exist(File.join(out_dir, "model_manifest.json"))
 
       _out3, err3, st3 = run_cmd(
         "ruby", "scripts/evaluate_exacta_lightgbm.rb",

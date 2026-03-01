@@ -9,6 +9,7 @@ require "open3"
 require "optparse"
 require_relative "lib/feature_schema"
 require_relative "lib/lightgbm_utils"
+require_relative "lib/model_manifest"
 
 class LightGBMTrainer
   WEIGHT_MODES = %w[none time_decay].freeze
@@ -56,6 +57,7 @@ class LightGBMTrainer
     write_config(conf_path, train_data_path, valid_data_path, model_path, metric_path, weighted: !train_weights.nil?)
 
     run_lightgbm(conf_path)
+    write_manifest(train_rows, valid_rows, model_path)
     warn "model=#{model_path}"
     warn "metric=#{metric_path}"
   end
@@ -155,6 +157,24 @@ class LightGBMTrainer
     raise "lightgbm failed: #{err}\n#{out}" unless status.success?
 
     warn out
+  end
+
+  def write_manifest(train_rows, valid_rows, model_path)
+    train_dates = train_rows.map { |r| parse_date(r["race_date"]) }
+    valid_dates = valid_rows.map { |r| parse_date(r["race_date"]) }
+    manifest = GK::ModelManifest.build(
+      model_id: File.basename(File.dirname(model_path)).to_s.empty? ? "ml" : File.basename(File.dirname(model_path)),
+      target_col: @target_col,
+      feature_set_version: "v1",
+      feature_columns: @feature_columns,
+      train_from: train_dates.min.iso8601,
+      train_to: train_dates.max.iso8601,
+      valid_from: valid_dates.min.iso8601,
+      valid_to: valid_dates.max.iso8601,
+      metrics: {}
+    )
+    path = File.join(@out_dir, "model_manifest.json")
+    File.write(path, JSON.pretty_generate(manifest))
   end
 end
 

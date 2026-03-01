@@ -27,6 +27,7 @@ RSpec.describe "train/eval/tune/run_timeseries_cv" do
       expect(st1.success?).to be(true), err1
       expect(File).to exist(File.join(out_dir, "model.txt"))
       expect(File).to exist(File.join(out_dir, "encoders.json"))
+      expect(File).to exist(File.join(out_dir, "model_manifest.json"))
 
       _out2, err2, st2 = run_cmd(
         "ruby", "scripts/evaluate_lightgbm.rb",

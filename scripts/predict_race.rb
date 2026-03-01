@@ -16,6 +16,7 @@ require_relative "lib/feature_schema"
 require_relative "lib/exotic_scoring"
 require_relative "lib/html_utils"
 require_relative "lib/lightgbm_utils"
+require_relative "lib/model_manifest"
 
 class RacePredictor
   DEFAULT_WIN_PRIOR = (1.0 / 7.0)
@@ -59,6 +60,9 @@ class RacePredictor
     @feature_columns_top3 = load_feature_columns(@model_top3, GK::FeatureSchema::FEATURE_COLUMNS)
     @feature_columns_top1 = load_feature_columns(@model_top1, GK::FeatureSchema::FEATURE_COLUMNS)
     @feature_columns_exacta = load_feature_columns(@model_exacta, GK::ExactaFeatureSchema::FEATURE_COLUMNS)
+    validate_model_manifest!(@model_top3, @feature_columns_top3)
+    validate_model_manifest!(@model_top1, @feature_columns_top1)
+    validate_model_manifest!(@model_exacta, @feature_columns_exacta)
     @same_meet_history = {}
     @pair_history = {}
     @triplet_history = {}
@@ -652,6 +656,14 @@ class RacePredictor
 
   def exacta_model_available?
     @use_exacta_model && File.exist?(@model_exacta.to_s) && File.exist?(@encoders_exacta.to_s)
+  end
+
+  def validate_model_manifest!(model_path, feature_columns)
+    return if model_path.to_s.empty?
+
+    manifest_path = File.join(File.dirname(model_path), "model_manifest.json")
+    manifest = GK::ModelManifest.load(manifest_path)
+    GK::ModelManifest.validate_feature_columns!(manifest, feature_columns)
   end
 
   def print_rankings(race, rows)

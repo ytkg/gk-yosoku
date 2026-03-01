@@ -286,4 +286,49 @@ RSpec.describe "predict_race.rb" do
     expect(st.success?).to be(false)
     expect(err).to include("Usage: ruby scripts/predict_race.rb")
   end
+
+  it "model manifestの特徴量不一致ならエラーになる" do
+    Dir.mktmpdir("spec-predict-manifest-mismatch-") do |tmp|
+      bin_dir = File.join(tmp, "bin")
+      create_fake_lightgbm(bin_dir)
+      env = { "PATH" => "#{bin_dir}:#{ENV.fetch('PATH', '')}" }
+
+      url = "https://keirin.kdreams.jp/toride/racedetail/2320260225030004/"
+      cache_dir = File.join(tmp, "cache")
+      raw_dir = File.join(tmp, "raw")
+      model_dir = File.join(tmp, "models")
+      FileUtils.mkdir_p(cache_dir)
+      FileUtils.mkdir_p(raw_dir)
+      FileUtils.mkdir_p(model_dir)
+      File.write(File.join(cache_dir, "race_#{Digest::SHA1.hexdigest(url)}.html"), "<table class=\"racecard_table\">脚<br>質</table>")
+      write_csv(
+        File.join(raw_dir, "girls_results_20260226.csv"),
+        %w[race_date venue race_number racedetail_id show_result_url rank result_status frame_number car_number player_name age class raw_cells],
+        []
+      )
+      File.write(File.join(model_dir, "model_top3.txt"), "dummy")
+      File.write(File.join(model_dir, "model_top1.txt"), "dummy")
+      File.write(File.join(model_dir, "enc_top3.json"), "{}")
+      File.write(File.join(model_dir, "enc_top1.json"), "{}")
+      File.write(
+        File.join(model_dir, "model_manifest.json"),
+        JSON.pretty_generate({ "feature_columns_digest" => "deadbeef" })
+      )
+
+      _out, err, st = run_cmd(
+        "ruby", "scripts/predict_race.rb",
+        "--url", url,
+        "--model-top3", File.join(model_dir, "model_top3.txt"),
+        "--encoders-top3", File.join(model_dir, "enc_top3.json"),
+        "--model-top1", File.join(model_dir, "model_top1.txt"),
+        "--encoders-top1", File.join(model_dir, "enc_top1.json"),
+        "--raw-dir", raw_dir,
+        "--cache-dir", cache_dir,
+        "--cache",
+        env: env
+      )
+      expect(st.success?).to be(false)
+      expect(err).to include("model manifest mismatch")
+    end
+  end
 end
