@@ -7,7 +7,9 @@ require "optparse"
 require_relative "lib/duckdb_runner"
 
 class DuckDBFeatureSplitter
-  def initialize(from_date:, to_date:, train_to:, lake_dir:, feature_set_version:, out_dir:, mart_dir:, db_path:)
+  TEMPLATE_PATH = File.expand_path("../sql/split_train_valid.sql", __dir__)
+
+  def initialize(from_date:, to_date:, train_to:, lake_dir:, feature_set_version:, out_dir:, mart_dir:, db_path:, sql_template:)
     @from_date = Date.iso8601(from_date)
     @to_date = Date.iso8601(to_date)
     @train_to = Date.iso8601(train_to)
@@ -19,6 +21,7 @@ class DuckDBFeatureSplitter
     @out_dir = out_dir
     @mart_dir = mart_dir
     @db_path = db_path
+    @sql_template = sql_template
   end
 
   def run
@@ -40,43 +43,16 @@ class DuckDBFeatureSplitter
       "race_date=*",
       "*.parquet"
     )
-    sql = <<~SQL
-      CREATE OR REPLACE TEMP VIEW features_all AS
-      SELECT *
-      FROM read_parquet(#{GK::DuckDBRunner.sql_quote(features_glob)});
-
-      CREATE OR REPLACE TEMP VIEW features_filtered AS
-      SELECT *
-      FROM features_all
-      WHERE CAST(race_date AS DATE) BETWEEN DATE #{GK::DuckDBRunner.sql_quote(@from_date.iso8601)}
-                                      AND DATE #{GK::DuckDBRunner.sql_quote(@to_date.iso8601)};
-
-      COPY (
-        SELECT *
-        FROM features_filtered
-        WHERE CAST(race_date AS DATE) <= DATE #{GK::DuckDBRunner.sql_quote(@train_to.iso8601)}
-        ORDER BY race_date, venue, CAST(race_number AS INTEGER), CAST(car_number AS INTEGER)
-      ) TO #{GK::DuckDBRunner.sql_quote(train_csv)} (HEADER, DELIMITER ',');
-
-      COPY (
-        SELECT *
-        FROM features_filtered
-        WHERE CAST(race_date AS DATE) > DATE #{GK::DuckDBRunner.sql_quote(@train_to.iso8601)}
-        ORDER BY race_date, venue, CAST(race_number AS INTEGER), CAST(car_number AS INTEGER)
-      ) TO #{GK::DuckDBRunner.sql_quote(valid_csv)} (HEADER, DELIMITER ',');
-
-      COPY (
-        SELECT *
-        FROM features_filtered
-        WHERE CAST(race_date AS DATE) <= DATE #{GK::DuckDBRunner.sql_quote(@train_to.iso8601)}
-      ) TO #{GK::DuckDBRunner.sql_quote(train_parquet)} (FORMAT PARQUET, COMPRESSION ZSTD);
-
-      COPY (
-        SELECT *
-        FROM features_filtered
-        WHERE CAST(race_date AS DATE) > DATE #{GK::DuckDBRunner.sql_quote(@train_to.iso8601)}
-      ) TO #{GK::DuckDBRunner.sql_quote(valid_parquet)} (FORMAT PARQUET, COMPRESSION ZSTD);
-    SQL
+    sql = build_sql(
+      features_glob: features_glob,
+      from_date: @from_date.iso8601,
+      to_date: @to_date.iso8601,
+      train_to: @train_to.iso8601,
+      train_csv: train_csv,
+      valid_csv: valid_csv,
+      train_parquet: train_parquet,
+      valid_parquet: valid_parquet
+    )
 
     GK::DuckDBRunner.run_sql!(db_path: @db_path, sql: sql)
     warn "split_id=#{split_id} train_csv=#{train_csv} valid_csv=#{valid_csv}"
@@ -91,6 +67,23 @@ class DuckDBFeatureSplitter
       message: "duckdb command not found. Please install duckdb CLI in Docker image."
     )
   end
+
+  def build_sql(features_glob:, from_date:, to_date:, train_to:, train_csv:, valid_csv:, train_parquet:, valid_parquet:)
+    template = File.read(@sql_template, encoding: "UTF-8")
+    {
+      "features_glob" => features_glob,
+      "from_date" => from_date,
+      "to_date" => to_date,
+      "train_to" => train_to,
+      "train_csv" => train_csv,
+      "valid_csv" => valid_csv,
+      "train_parquet" => train_parquet,
+      "valid_parquet" => valid_parquet
+    }.each do |key, value|
+      template = template.gsub("{{#{key}}}", value.to_s.gsub("'", "''"))
+    end
+    template
+  end
 end
 
 options = {
@@ -101,7 +94,8 @@ options = {
   feature_set_version: "v1",
   out_dir: File.join("data", "ml"),
   mart_dir: File.join("data", "marts", "train_valid"),
-  db_path: File.join("data", "duckdb", "gk_yosoku.duckdb")
+  db_path: File.join("data", "duckdb", "gk_yosoku.duckdb"),
+  sql_template: DuckDBFeatureSplitter::TEMPLATE_PATH
 }
 
 parser = OptionParser.new do |opts|
@@ -114,6 +108,7 @@ parser = OptionParser.new do |opts|
   opts.on("--out-dir DIR", "train/valid CSV 出力先") { |v| options[:out_dir] = v }
   opts.on("--mart-dir DIR", "train/valid Parquet 出力先") { |v| options[:mart_dir] = v }
   opts.on("--db-path PATH", "DuckDB DB ファイルパス") { |v| options[:db_path] = v }
+  opts.on("--sql-template PATH", "split SQL テンプレートファイル") { |v| options[:sql_template] = v }
 end
 parser.parse!
 
@@ -130,5 +125,6 @@ DuckDBFeatureSplitter.new(
   feature_set_version: options[:feature_set_version],
   out_dir: options[:out_dir],
   mart_dir: options[:mart_dir],
-  db_path: options[:db_path]
+  db_path: options[:db_path],
+  sql_template: options[:sql_template]
 ).run
