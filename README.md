@@ -91,6 +91,10 @@ ruby scripts/predict_race.rb \
   --api-url http://127.0.0.1:4567/predict
 ```
 
+CLI利用からAPI利用へ切り替える場合は、マイグレーションガイドを参照してください。
+
+- `docs/api/migration-cli-to-api.md`
+
 ## 主要コマンド（Makefile前提）
 
 ### 1. データ取得
