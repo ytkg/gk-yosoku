@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "spec_helper"
+require "json-schema"
 require "rack/test"
 require_relative "../../../apps/api/app"
 
@@ -9,6 +10,10 @@ RSpec.describe GK::PredictAPI do
 
   def app
     GK::PredictAPI.new
+  end
+
+  def load_schema(path)
+    JSON.parse(File.read(path))
   end
 
   it "GET /health は healthy を返す" do
@@ -23,8 +28,25 @@ RSpec.describe GK::PredictAPI do
 
   it "POST /predict 正常系は code=ok を返す" do
     stdout = JSON.generate(
-      "race" => { "race_id" => "2026-02-25-toride-01" },
-      "rankings" => [{ "rank" => 1, "car_number" => 1 }]
+      "race" => {
+        "race_id" => "2026-02-25-toride-01",
+        "race_date" => "2026-02-25",
+        "venue" => "toride",
+        "race_number" => 1,
+        "racedetail_id" => "26202602250100"
+      },
+      "entries" => [
+        {
+          "car_number" => 1,
+          "player_name" => "A",
+          "mark_symbol" => "◎",
+          "leg_style" => "逃",
+          "odds_2shatan_min_first" => 2.2
+        }
+      ],
+      "rankings" => [{ "rank" => 1, "car_number" => 1, "player_name" => "A", "score_top1" => 0.9, "score_top3" => 0.95 }],
+      "confidence" => { "gap" => 0.1, "threshold" => 0.05, "action" => "bet" },
+      "exotics" => { "decision" => "bet", "exacta" => { "rows" => [] }, "trifecta" => { "rows" => [] } }
     )
     allow(Open3).to receive(:capture3).and_return([stdout, "", instance_double(Process::Status, success?: true)])
 
@@ -35,6 +57,9 @@ RSpec.describe GK::PredictAPI do
     expect(body["code"]).to eq("ok")
     expect(body.dig("detail", "race", "race_id")).to eq("2026-02-25-toride-01")
     expect(body.dig("detail", "rankings", 0, "car_number")).to eq(1)
+    schema = load_schema(File.join(__dir__, "../../../docs/api/predict-success.schema.json"))
+    errors = JSON::Validator.fully_validate(schema, body)
+    expect(errors).to eq([])
   end
 
   it "POST /predict 異常系は code/message/detail 形式で返す" do
@@ -48,6 +73,9 @@ RSpec.describe GK::PredictAPI do
     expect(body["code"]).to eq("predict_failed")
     expect(body["message"]).to be_a(String)
     expect(body["detail"]).to include("stderr", "exit_status")
+    schema = load_schema(File.join(__dir__, "../../../docs/api/predict-error.schema.json"))
+    errors = JSON::Validator.fully_validate(schema, body)
+    expect(errors).to eq([])
   end
 
   it "url 欠落時は invalid_request を返す" do

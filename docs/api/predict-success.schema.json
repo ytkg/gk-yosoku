@@ -1,0 +1,28 @@
+{
+  "type": "object",
+  "required": ["code", "message", "detail"],
+  "properties": {
+    "code": { "enum": ["ok"] },
+    "message": { "type": "string" },
+    "detail": {
+      "type": "object",
+      "required": ["race", "entries", "rankings", "confidence", "exotics"],
+      "properties": {
+        "race": {
+          "type": "object",
+          "required": ["race_id", "race_date", "venue", "race_number", "racedetail_id"]
+        },
+        "entries": { "type": "array" },
+        "rankings": { "type": "array" },
+        "confidence": {
+          "type": "object",
+          "required": ["gap", "threshold", "action"]
+        },
+        "exotics": {
+          "type": "object",
+          "required": ["decision", "exacta", "trifecta"]
+        }
+      }
+    }
+  }
+}

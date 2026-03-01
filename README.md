@@ -53,6 +53,10 @@ make help
 ローカル専用で `POST /predict` を提供します（デプロイは想定しません）。
 タイムアウト秒は `GK_PREDICT_TIMEOUT_SEC`（既定: `30`）で調整できます。
 `POST /predict` の成功レスポンスは、予測結果の構造化JSON（`race`, `entries`, `rankings`, `confidence`, `exotics`）を `detail` に返します。
+レスポンス契約は以下のJSON Schemaで管理します。
+
+- `docs/api/predict-success.schema.json`
+- `docs/api/predict-error.schema.json`
 
 起動:
 
