@@ -12,6 +12,7 @@ require "optparse"
 require "tmpdir"
 require "uri"
 require_relative "lib/exacta_feature_schema"
+require_relative "lib/feature_engine_common"
 require_relative "lib/feature_schema"
 require_relative "lib/exotic_scoring"
 require_relative "lib/html_utils"
@@ -333,19 +334,11 @@ class RacePredictor
   end
 
   def smoothed_rate(num, den, prior, strength)
-    den_f = den.to_f
-    prior_f = prior.to_f
-    return prior_f if den_f <= 0.0
-
-    (num.to_f + (prior_f * strength.to_f)) / (den_f + strength.to_f)
+    GK::FeatureEngineCommon.smoothed_rate(num, den, prior, strength)
   end
 
   def recent_rate_smoothed_f(stats, threshold_rank, window, prior, strength)
-    recent = stats[:recent_ranks].first(window)
-    return prior.to_f if recent.empty?
-
-    hits = recent.count { |rank| rank <= threshold_rank }
-    smoothed_rate(hits, recent.size, prior, strength)
+    GK::FeatureEngineCommon.recent_rate_smoothed_f(stats, threshold_rank, window, prior, strength)
   end
 
   def avg_rank(stats)
@@ -521,14 +514,7 @@ class RacePredictor
   end
 
   def mark_score(mark_symbol)
-    case mark_symbol.to_s
-    when "◎" then 5.0
-    when "○" then 4.0
-    when "▲" then 3.0
-    when "△" then 2.0
-    when "×", "注" then 1.0
-    else 0.0
-    end
+    GK::FeatureEngineCommon.mark_score(mark_symbol)
   end
 
   def check_lightgbm!
