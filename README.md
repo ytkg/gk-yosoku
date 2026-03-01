@@ -70,6 +70,18 @@ docker run --rm -v "$PWD:/app" -w /app gk-yosoku ruby scripts/collect_data.rb \
 make features FROM=2025-01-01 TO=2026-02-25
 ```
 
+DuckDB/Parquet 併用フロー（並走用）:
+
+```bash
+make parquet-bootstrap FROM=2025-01-01 TO=2026-02-25
+make features-duckdb FROM=2025-01-01 TO=2026-02-25
+```
+
+補足:
+- `make parquet-bootstrap`: `data/raw/*.csv` から `data/lake` に Parquet を作成
+- `make features-duckdb`: 既存 `build_features` 実行後、`data/lake/features` に Parquet を作成
+- DBファイル既定値: `data/duckdb/gk_yosoku.duckdb`
+
 補足:
 - 履歴率系（`hist_*`、`pair_*`、`triplet_*`）には低サンプル時の過学習を抑える縮約（smoothing）を入れています。
 - 取得データの追加は不要です（既存CSVで計算）。

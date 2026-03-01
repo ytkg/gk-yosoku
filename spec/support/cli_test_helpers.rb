@@ -48,6 +48,25 @@ module CliTestHelpers
     path
   end
 
+  def create_fake_duckdb(bin_dir)
+    FileUtils.mkdir_p(bin_dir)
+    path = File.join(bin_dir, "duckdb")
+    File.write(path, <<~'SCRIPT')
+      #!/usr/bin/env ruby
+      require "fileutils"
+
+      _db_path = ARGV[0]
+      sql = STDIN.read
+      sql.scan(/TO\s+'([^']+)'/i).flatten.each do |out_path|
+        FileUtils.mkdir_p(File.dirname(out_path))
+        File.write(out_path, "fake parquet from duckdb\n")
+      end
+      puts "duckdb ok"
+    SCRIPT
+    FileUtils.chmod("u+x", path)
+    path
+  end
+
   def feature_headers
     %w[
       race_id race_date venue race_number racedetail_id player_name car_number rank top1 top3
