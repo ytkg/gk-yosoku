@@ -8,6 +8,7 @@ require "fileutils"
 require "optparse"
 require_relative "lib/html_utils"
 require_relative "lib/feature_engine_common"
+require_relative "../core/features/feature_builder"
 
 class FeatureBuilder
   DEFAULT_WIN_PRIOR = (1.0 / 7.0)
@@ -107,6 +108,15 @@ class FeatureBuilder
     @global_wins = 0
     @global_top3 = 0
     @race_cache_context = {}
+    @race_feature_builder = GK::Core::Features::FeatureBuilder.from_block do |race_rows:, date:, race_context:, global_win_prior:, global_top3_prior:, field_size:|
+      prepared = prepare_race_rows(
+        race_rows: race_rows,
+        global_win_prior: global_win_prior,
+        global_top3_prior: global_top3_prior,
+        race_context: race_context
+      )
+      build_race_features(prepared: prepared, date: date, field_size: field_size)
+    end
     FileUtils.mkdir_p(@out_dir)
   end
 
@@ -145,115 +155,14 @@ class FeatureBuilder
       race_context = cache_context_for_race(date, race_rows.first)
       global_win_prior = global_win_rate_prior
       global_top3_prior = global_top3_rate_prior
-      prepared = race_rows.map do |r|
-        stats = stats_for(r["player_name"])
-        car_no = r["car_number"].to_i
-        cache = race_context[car_no] || {}
-        hist_win_rate_f = smoothed_rate(stats[:win_count], stats[:count], global_win_prior, PLAYER_PRIOR_STRENGTH)
-        hist_top3_rate_f = smoothed_rate(stats[:top3_count], stats[:count], global_top3_prior, PLAYER_PRIOR_STRENGTH)
-        hist_recent3_win_rate_f = recent_rate_smoothed_f(stats, 1, 3, hist_win_rate_f, RECENT_PRIOR_STRENGTH)
-        hist_recent3_top3_rate_f = recent_rate_smoothed_f(stats, 3, 3, hist_top3_rate_f, RECENT_PRIOR_STRENGTH)
-        hist_recent5_win_rate_f = recent_rate_smoothed_f(stats, 1, 5, hist_win_rate_f, RECENT_PRIOR_STRENGTH)
-        hist_recent5_top3_rate_f = recent_rate_smoothed_f(stats, 3, 5, hist_top3_rate_f, RECENT_PRIOR_STRENGTH)
-        pair_ctx = pair_context(r["player_name"], race_rows, hist_top3_rate_f, global_top3_prior)
-        triplet_ctx = triplet_context(r["player_name"], race_rows, hist_top3_rate_f, global_top3_prior)
-        {
-          row: r,
-          stats: stats,
-          same_meet_stats: same_meet_stats_for(r),
-          pair_ctx: pair_ctx,
-          triplet_ctx: triplet_ctx,
-          hist_win_rate_f: hist_win_rate_f,
-          hist_top3_rate_f: hist_top3_rate_f,
-          hist_avg_rank_f: avg_rank_f(stats),
-          hist_recent3_win_rate_f: hist_recent3_win_rate_f,
-          hist_recent3_top3_rate_f: hist_recent3_top3_rate_f,
-          hist_recent5_win_rate_f: hist_recent5_win_rate_f,
-          hist_recent5_top3_rate_f: hist_recent5_top3_rate_f,
-          mark_symbol: cache[:mark_symbol] || mark_from_raw_cells(r["raw_cells"]),
-          leg_style: cache[:leg_style].to_s,
-          odds_2shatan_min_first_f: cache[:odds_2shatan_min_first] || 9999.9
-        }
-      end
-      prepared.each do |p|
-        p[:mark_score_f] = mark_score(p[:mark_symbol])
-        p[:same_meet_prev_day_rank_f] = same_meet_prev_day_rank_f(p[:same_meet_stats])
-        p[:same_meet_avg_rank_f] = same_meet_avg_rank_f(p[:same_meet_stats])
-        p[:recent3_vs_hist_top3_delta_f] = p[:hist_recent3_top3_rate_f] - p[:hist_top3_rate_f]
-        p[:same_meet_prev_day_rank_inv_f] = same_meet_prev_day_rank_inv_f(p[:same_meet_stats])
-        p[:same_meet_recent3_synergy_f] = p[:same_meet_prev_day_rank_inv_f] * p[:hist_recent3_top3_rate_f]
-        p[:pair_hist_count_total_f] = p[:pair_ctx][:count_total]
-        p[:pair_hist_i_top3_rate_avg_f] = p[:pair_ctx][:i_top3_rate_avg]
-        p[:pair_hist_both_top3_rate_avg_f] = p[:pair_ctx][:both_top3_rate_avg]
-        p[:triplet_hist_count_total_f] = p[:triplet_ctx][:count_total]
-        p[:triplet_hist_i_top3_rate_avg_f] = p[:triplet_ctx][:i_top3_rate_avg]
-        p[:triplet_hist_all_top3_rate_avg_f] = p[:triplet_ctx][:all_top3_rate_avg]
-      end
-      race_features = []
-      prepared.each do |p|
-        r = p[:row]
-        stats = p[:stats]
-        same_meet = p[:same_meet_stats]
-        rank = r["rank"].to_i
-
-        race_features << {
-          "race_id" => race_id_from_row(r),
-          "race_date" => r["race_date"],
-          "venue" => r["venue"],
-          "race_number" => r["race_number"].to_i.to_s,
-          "racedetail_id" => r["racedetail_id"],
-          "player_name" => r["player_name"],
-          "car_number" => r["car_number"].to_i.to_s,
-          "rank" => rank.to_s,
-          "top1" => rank == 1 ? "1" : "0",
-          "top3" => rank <= 3 ? "1" : "0",
-          "hist_races" => stats[:count].to_s,
-          "hist_win_rate" => format("%.6f", p[:hist_win_rate_f]),
-          "hist_top3_rate" => format("%.6f", p[:hist_top3_rate_f]),
-          "hist_avg_rank" => avg_rank(stats),
-          "hist_last_rank" => stats[:last_rank].to_s,
-          "hist_recent3_weighted_avg_rank" => recent_weighted_avg_rank(stats, 3),
-          "hist_recent3_win_rate" => format("%.6f", p[:hist_recent3_win_rate_f]),
-          "hist_recent3_top3_rate" => format("%.6f", p[:hist_recent3_top3_rate_f]),
-          "recent3_vs_hist_top3_delta" => format("%.6f", p[:recent3_vs_hist_top3_delta_f]),
-          "hist_recent5_weighted_avg_rank" => recent_weighted_avg_rank(stats, 5),
-          "hist_recent5_win_rate" => format("%.6f", p[:hist_recent5_win_rate_f]),
-          "hist_recent5_top3_rate" => format("%.6f", p[:hist_recent5_top3_rate_f]),
-          "hist_days_since_last" => days_since_last(stats, date).to_s,
-          "same_meet_day_number" => same_meet_day_number(r).to_s,
-          "same_meet_prev_day_exists" => same_meet[:prev_day_rank] > 0 ? "1" : "0",
-          "same_meet_prev_day_rank" => same_meet[:prev_day_rank].to_s,
-          "same_meet_prev_day_top1" => same_meet[:prev_day_rank] == 1 ? "1" : "0",
-          "same_meet_prev_day_top3" => (same_meet[:prev_day_rank] >= 1 && same_meet[:prev_day_rank] <= 3) ? "1" : "0",
-          "same_meet_races" => same_meet[:count].to_s,
-          "same_meet_avg_rank" => same_meet_avg_rank(same_meet),
-          "same_meet_prev_day_rank_inv" => format("%.6f", p[:same_meet_prev_day_rank_inv_f]),
-          "same_meet_recent3_synergy" => format("%.6f", p[:same_meet_recent3_synergy_f]),
-          "pair_hist_count_total" => format("%.6f", p[:pair_hist_count_total_f]),
-          "pair_hist_i_top3_rate_avg" => format("%.6f", p[:pair_hist_i_top3_rate_avg_f]),
-          "pair_hist_both_top3_rate_avg" => format("%.6f", p[:pair_hist_both_top3_rate_avg_f]),
-          "triplet_hist_count_total" => format("%.6f", p[:triplet_hist_count_total_f]),
-          "triplet_hist_i_top3_rate_avg" => format("%.6f", p[:triplet_hist_i_top3_rate_avg_f]),
-          "triplet_hist_all_top3_rate_avg" => format("%.6f", p[:triplet_hist_all_top3_rate_avg_f]),
-          "race_rel_hist_avg_rank_rank" => "0",
-          "race_rel_hist_recent3_top3_rate_rank" => "0",
-          "race_rel_hist_recent5_top3_rate_rank" => "0",
-          "race_rel_same_meet_prev_day_rank" => "0",
-          "race_rel_same_meet_avg_rank_rank" => "0",
-          "race_rel_same_meet_recent3_synergy_rank" => "0",
-          "race_rel_pair_i_top3_rate_rank" => "0",
-          "race_rel_triplet_i_top3_rate_rank" => "0",
-          "race_rel_hist_win_rate_rank" => "0",
-          "race_rel_hist_top3_rate_rank" => "0",
-          "mark_symbol" => p[:mark_symbol],
-          "leg_style" => p[:leg_style],
-          "mark_score" => format("%.1f", p[:mark_score_f]),
-          "race_rel_mark_score_rank" => "0",
-          "odds_2shatan_min_first" => format("%.6f", p[:odds_2shatan_min_first_f]),
-          "race_rel_odds_2shatan_rank" => "0",
-          "race_field_size" => field_size.to_s
-        }
-      end
+      race_features = @race_feature_builder.build(
+        race_rows: race_rows,
+        date: date,
+        race_context: race_context,
+        global_win_prior: global_win_prior,
+        global_top3_prior: global_top3_prior,
+        field_size: field_size
+      )
       GK::FeatureEngineCommon.enrich_relative_ranks!(race_features)
       features.concat(race_features)
 
@@ -272,6 +181,123 @@ class FeatureBuilder
 
   def race_id_from_row(row)
     "#{row['race_date']}-#{row['venue']}-#{format('%02d', row['race_number'].to_i)}"
+  end
+
+  def prepare_race_rows(race_rows:, global_win_prior:, global_top3_prior:, race_context:)
+    prepared = race_rows.map do |r|
+      stats = stats_for(r["player_name"])
+      car_no = r["car_number"].to_i
+      cache = race_context[car_no] || {}
+      hist_win_rate_f = smoothed_rate(stats[:win_count], stats[:count], global_win_prior, PLAYER_PRIOR_STRENGTH)
+      hist_top3_rate_f = smoothed_rate(stats[:top3_count], stats[:count], global_top3_prior, PLAYER_PRIOR_STRENGTH)
+      hist_recent3_win_rate_f = recent_rate_smoothed_f(stats, 1, 3, hist_win_rate_f, RECENT_PRIOR_STRENGTH)
+      hist_recent3_top3_rate_f = recent_rate_smoothed_f(stats, 3, 3, hist_top3_rate_f, RECENT_PRIOR_STRENGTH)
+      hist_recent5_win_rate_f = recent_rate_smoothed_f(stats, 1, 5, hist_win_rate_f, RECENT_PRIOR_STRENGTH)
+      hist_recent5_top3_rate_f = recent_rate_smoothed_f(stats, 3, 5, hist_top3_rate_f, RECENT_PRIOR_STRENGTH)
+      pair_ctx = pair_context(r["player_name"], race_rows, hist_top3_rate_f, global_top3_prior)
+      triplet_ctx = triplet_context(r["player_name"], race_rows, hist_top3_rate_f, global_top3_prior)
+      {
+        row: r,
+        stats: stats,
+        same_meet_stats: same_meet_stats_for(r),
+        pair_ctx: pair_ctx,
+        triplet_ctx: triplet_ctx,
+        hist_win_rate_f: hist_win_rate_f,
+        hist_top3_rate_f: hist_top3_rate_f,
+        hist_avg_rank_f: avg_rank_f(stats),
+        hist_recent3_win_rate_f: hist_recent3_win_rate_f,
+        hist_recent3_top3_rate_f: hist_recent3_top3_rate_f,
+        hist_recent5_win_rate_f: hist_recent5_win_rate_f,
+        hist_recent5_top3_rate_f: hist_recent5_top3_rate_f,
+        mark_symbol: cache[:mark_symbol] || mark_from_raw_cells(r["raw_cells"]),
+        leg_style: cache[:leg_style].to_s,
+        odds_2shatan_min_first_f: cache[:odds_2shatan_min_first] || 9999.9
+      }
+    end
+
+    prepared.each do |p|
+      p[:mark_score_f] = mark_score(p[:mark_symbol])
+      p[:same_meet_prev_day_rank_f] = same_meet_prev_day_rank_f(p[:same_meet_stats])
+      p[:same_meet_avg_rank_f] = same_meet_avg_rank_f(p[:same_meet_stats])
+      p[:recent3_vs_hist_top3_delta_f] = p[:hist_recent3_top3_rate_f] - p[:hist_top3_rate_f]
+      p[:same_meet_prev_day_rank_inv_f] = same_meet_prev_day_rank_inv_f(p[:same_meet_stats])
+      p[:same_meet_recent3_synergy_f] = p[:same_meet_prev_day_rank_inv_f] * p[:hist_recent3_top3_rate_f]
+      p[:pair_hist_count_total_f] = p[:pair_ctx][:count_total]
+      p[:pair_hist_i_top3_rate_avg_f] = p[:pair_ctx][:i_top3_rate_avg]
+      p[:pair_hist_both_top3_rate_avg_f] = p[:pair_ctx][:both_top3_rate_avg]
+      p[:triplet_hist_count_total_f] = p[:triplet_ctx][:count_total]
+      p[:triplet_hist_i_top3_rate_avg_f] = p[:triplet_ctx][:i_top3_rate_avg]
+      p[:triplet_hist_all_top3_rate_avg_f] = p[:triplet_ctx][:all_top3_rate_avg]
+    end
+
+    prepared
+  end
+
+  def build_race_features(prepared:, date:, field_size:)
+    prepared.map do |p|
+      r = p[:row]
+      stats = p[:stats]
+      same_meet = p[:same_meet_stats]
+      rank = r["rank"].to_i
+
+      {
+        "race_id" => race_id_from_row(r),
+        "race_date" => r["race_date"],
+        "venue" => r["venue"],
+        "race_number" => r["race_number"].to_i.to_s,
+        "racedetail_id" => r["racedetail_id"],
+        "player_name" => r["player_name"],
+        "car_number" => r["car_number"].to_i.to_s,
+        "rank" => rank.to_s,
+        "top1" => rank == 1 ? "1" : "0",
+        "top3" => rank <= 3 ? "1" : "0",
+        "hist_races" => stats[:count].to_s,
+        "hist_win_rate" => format("%.6f", p[:hist_win_rate_f]),
+        "hist_top3_rate" => format("%.6f", p[:hist_top3_rate_f]),
+        "hist_avg_rank" => avg_rank(stats),
+        "hist_last_rank" => stats[:last_rank].to_s,
+        "hist_recent3_weighted_avg_rank" => recent_weighted_avg_rank(stats, 3),
+        "hist_recent3_win_rate" => format("%.6f", p[:hist_recent3_win_rate_f]),
+        "hist_recent3_top3_rate" => format("%.6f", p[:hist_recent3_top3_rate_f]),
+        "recent3_vs_hist_top3_delta" => format("%.6f", p[:recent3_vs_hist_top3_delta_f]),
+        "hist_recent5_weighted_avg_rank" => recent_weighted_avg_rank(stats, 5),
+        "hist_recent5_win_rate" => format("%.6f", p[:hist_recent5_win_rate_f]),
+        "hist_recent5_top3_rate" => format("%.6f", p[:hist_recent5_top3_rate_f]),
+        "hist_days_since_last" => days_since_last(stats, date).to_s,
+        "same_meet_day_number" => same_meet_day_number(r).to_s,
+        "same_meet_prev_day_exists" => same_meet[:prev_day_rank] > 0 ? "1" : "0",
+        "same_meet_prev_day_rank" => same_meet[:prev_day_rank].to_s,
+        "same_meet_prev_day_top1" => same_meet[:prev_day_rank] == 1 ? "1" : "0",
+        "same_meet_prev_day_top3" => (same_meet[:prev_day_rank] >= 1 && same_meet[:prev_day_rank] <= 3) ? "1" : "0",
+        "same_meet_races" => same_meet[:count].to_s,
+        "same_meet_avg_rank" => same_meet_avg_rank(same_meet),
+        "same_meet_prev_day_rank_inv" => format("%.6f", p[:same_meet_prev_day_rank_inv_f]),
+        "same_meet_recent3_synergy" => format("%.6f", p[:same_meet_recent3_synergy_f]),
+        "pair_hist_count_total" => format("%.6f", p[:pair_hist_count_total_f]),
+        "pair_hist_i_top3_rate_avg" => format("%.6f", p[:pair_hist_i_top3_rate_avg_f]),
+        "pair_hist_both_top3_rate_avg" => format("%.6f", p[:pair_hist_both_top3_rate_avg_f]),
+        "triplet_hist_count_total" => format("%.6f", p[:triplet_hist_count_total_f]),
+        "triplet_hist_i_top3_rate_avg" => format("%.6f", p[:triplet_hist_i_top3_rate_avg_f]),
+        "triplet_hist_all_top3_rate_avg" => format("%.6f", p[:triplet_hist_all_top3_rate_avg_f]),
+        "race_rel_hist_avg_rank_rank" => "0",
+        "race_rel_hist_recent3_top3_rate_rank" => "0",
+        "race_rel_hist_recent5_top3_rate_rank" => "0",
+        "race_rel_same_meet_prev_day_rank" => "0",
+        "race_rel_same_meet_avg_rank_rank" => "0",
+        "race_rel_same_meet_recent3_synergy_rank" => "0",
+        "race_rel_pair_i_top3_rate_rank" => "0",
+        "race_rel_triplet_i_top3_rate_rank" => "0",
+        "race_rel_hist_win_rate_rank" => "0",
+        "race_rel_hist_top3_rate_rank" => "0",
+        "mark_symbol" => p[:mark_symbol],
+        "leg_style" => p[:leg_style],
+        "mark_score" => format("%.1f", p[:mark_score_f]),
+        "race_rel_mark_score_rank" => "0",
+        "odds_2shatan_min_first" => format("%.6f", p[:odds_2shatan_min_first_f]),
+        "race_rel_odds_2shatan_rank" => "0",
+        "race_field_size" => field_size.to_s
+      }
+    end
   end
 
   def race_sort_key(race_id)
