@@ -261,6 +261,26 @@ RSpec.describe "predict_race.rb" do
     expect(err).to include("--bet-style must be one of: standard, solid, value")
   end
 
+  it "unitが0以下ならエラーになる" do
+    _out, err, st = run_cmd(
+      "ruby", "scripts/predict_race.rb",
+      "--url", "https://keirin.kdreams.jp/toride/racedetail/2320260225030004/",
+      "--unit", "0"
+    )
+    expect(st.success?).to be(false)
+    expect(err).to include("--unit must be > 0")
+  end
+
+  it "kelly-capが範囲外ならエラーになる" do
+    _out, err, st = run_cmd(
+      "ruby", "scripts/predict_race.rb",
+      "--url", "https://keirin.kdreams.jp/toride/racedetail/2320260225030004/",
+      "--kelly-cap", "-0.1"
+    )
+    expect(st.success?).to be(false)
+    expect(err).to include("--kelly-cap must be between 0 and 1")
+  end
+
   it "url未指定はusageで終了する" do
     _out, err, st = run_cmd("ruby", "scripts/predict_race.rb")
     expect(st.success?).to be(false)

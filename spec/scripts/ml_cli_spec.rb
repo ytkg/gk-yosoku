@@ -121,6 +121,36 @@ RSpec.describe "train/eval/tune/run_timeseries_cv" do
     end
   end
 
+  it "train_lightgbm.rb: time_decay時はweight_column=1を設定する" do
+    Dir.mktmpdir("spec-train-weight-col-") do |tmp|
+      bin_dir = File.join(tmp, "bin")
+      create_fake_lightgbm(bin_dir)
+      env = { "PATH" => "#{bin_dir}:#{ENV.fetch('PATH', '')}" }
+
+      train_csv = File.join(tmp, "train.csv")
+      valid_csv = File.join(tmp, "valid.csv")
+      train_rows = sample_feature_rows(date: "2026-02-25", race_id: "2026-02-25-toride-01")
+      valid_rows = sample_feature_rows(date: "2026-02-26", race_id: "2026-02-26-toride-01")
+      write_csv(train_csv, feature_headers, train_rows)
+      write_csv(valid_csv, feature_headers, valid_rows)
+
+      out_dir = File.join(tmp, "ml")
+      _out, err, st = run_cmd(
+        "ruby", "scripts/train_lightgbm.rb",
+        "--train-csv", train_csv,
+        "--valid-csv", valid_csv,
+        "--out-dir", out_dir,
+        "--weight-mode", "time_decay",
+        env: env
+      )
+      expect(st.success?).to be(true), err
+
+      conf = File.read(File.join(out_dir, "lightgbm.conf"), encoding: "UTF-8")
+      expect(conf).to include("weight_column=1")
+      expect(conf).not_to include("weight_column=0")
+    end
+  end
+
   it "run_timeseries_cv.rb: foldが作れない期間設定はエラーになる" do
     Dir.mktmpdir("spec-cv-no-fold-") do |tmp|
       out_dir = File.join(tmp, "cv")

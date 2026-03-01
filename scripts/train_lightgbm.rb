@@ -110,7 +110,7 @@ class LightGBMTrainer
       first_metric_only=false
       early_stopping_round=#{@early_stopping_round}
     CONF
-    conf += "weight_column=0\n" if weighted
+    conf += "weight_column=1\n" if weighted
     File.write(path, conf)
 
     File.write(metric_path, "")

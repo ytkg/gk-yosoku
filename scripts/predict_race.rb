@@ -1088,6 +1088,31 @@ unless %w[standard solid value].include?(options[:bet_style])
   exit 1
 end
 
+if options[:unit] <= 0
+  warn "--unit must be > 0"
+  exit 1
+end
+
+if options[:bankroll] < 0
+  warn "--bankroll must be >= 0"
+  exit 1
+end
+
+if options[:kelly_cap] < 0.0 || options[:kelly_cap] > 1.0
+  warn "--kelly-cap must be between 0 and 1"
+  exit 1
+end
+
+if options[:no_bet_gap_threshold] < 0.0
+  warn "--bet-gap-threshold must be >= 0"
+  exit 1
+end
+
+if options[:exacta_min_ev] < 0.0
+  warn "--exacta-min-ev must be >= 0"
+  exit 1
+end
+
 RacePredictor.new(
   url: options[:url],
   model_top3: options[:model_top3],
