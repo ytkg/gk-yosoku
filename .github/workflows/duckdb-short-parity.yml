@@ -20,8 +20,8 @@ jobs:
           context: .
           load: true
           tags: gk-yosoku:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=duckdb-short-parity
+          cache-to: type=gha,mode=max,scope=duckdb-short-parity
 
       - name: Prepare short fixture data
         run: |
