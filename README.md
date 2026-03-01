@@ -62,14 +62,14 @@ make help
 起動:
 
 ```bash
-bundle install
-bundle exec rackup -p 4567
+make build
+make api-start
 ```
 
 ヘルスチェック:
 
 ```bash
-curl -sS http://127.0.0.1:4567/health
+make api-health
 ```
 
 呼び出し例:

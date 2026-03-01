@@ -34,12 +34,15 @@ HIT5_TOP1_MODEL ?= data/ml_top1/tuning_v2/trial_002/model.txt
 HIT5_TOP1_ENCODERS ?= data/ml_top1/tuning_v2/trial_002/encoders.json
 
 DOCKER_RUN = docker run --rm -v "$$PWD:/app" -w /app $(IMAGE)
+DOCKER_RUN_API = docker run --rm -p 4567:4567 -v "$$PWD:/app" -w /app $(IMAGE)
 
-.PHONY: help build collect parquet-bootstrap features features-duckdb features-duckdb-sql split split-duckdb validate-duckdb eval-duckdb backup-duckdb restore-duckdb features-exacta train eval train-top1 eval-top1 train-exacta eval-exacta-model train-dual eval-dual train-weakodds eval-weakodds train-top1-weakodds eval-top1-weakodds exotic eval-exotic exotic-weakodds eval-exotic-weakodds learn-hit5-profile learn-exacta-profile eval-exacta-profile tune tune-top1 tune-top3 tune-top3-noplayer tune-weakodds tune-top1-weakodds cv cv-top1 importance predict predict-exacta predict-balanced predict-trifecta predict-hit5 predict-hit5-profile predict-tri5 predict-weakodds test pipeline full
+.PHONY: help build api-start api-health collect parquet-bootstrap features features-duckdb features-duckdb-sql split split-duckdb validate-duckdb eval-duckdb backup-duckdb restore-duckdb features-exacta train eval train-top1 eval-top1 train-exacta eval-exacta-model train-dual eval-dual train-weakodds eval-weakodds train-top1-weakodds eval-top1-weakodds exotic eval-exotic exotic-weakodds eval-exotic-weakodds learn-hit5-profile learn-exacta-profile eval-exacta-profile tune tune-top1 tune-top3 tune-top3-noplayer tune-weakodds tune-top1-weakodds cv cv-top1 importance predict predict-exacta predict-balanced predict-trifecta predict-hit5 predict-hit5-profile predict-tri5 predict-weakodds test pipeline full
 
 help:
 	@echo "Targets:"
 	@echo "  make build"
+	@echo "  make api-start"
+	@echo "  make api-health"
 	@echo "  make collect   FROM=YYYY-MM-DD TO=YYYY-MM-DD SLEEP=0.2 CACHE=--cache"
 	@echo "  make parquet-bootstrap FROM=YYYY-MM-DD TO=YYYY-MM-DD LAKE_DIR=data/lake PARQUET_DB=data/duckdb/gk_yosoku.duckdb"
 	@echo "  make features  FROM=YYYY-MM-DD TO=YYYY-MM-DD"
@@ -94,6 +97,12 @@ help:
 
 build:
 	docker build -t $(IMAGE) .
+
+api-start:
+	$(DOCKER_RUN_API) bundle exec rackup -o 0.0.0.0 -p 4567
+
+api-health:
+	curl -sS http://127.0.0.1:4567/health
 
 collect:
 	$(DOCKER_RUN) ruby scripts/collect_data.rb \
