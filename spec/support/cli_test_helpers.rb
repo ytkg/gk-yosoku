@@ -59,7 +59,13 @@ module CliTestHelpers
       sql = STDIN.read
       sql.scan(/TO\s+'([^']+)'/i).flatten.each do |out_path|
         FileUtils.mkdir_p(File.dirname(out_path))
-        File.write(out_path, "fake parquet from duckdb\n")
+        if out_path.end_with?("summary.csv")
+          File.write(out_path, "csv_rows,parquet_rows,csv_only_keys,parquet_only_keys,rank_diff,top1_diff,top3_diff\n1,1,0,0,0,0,0\n")
+        elsif out_path.end_with?(".csv")
+          File.write(out_path, "race_id,car_number\nr1,1\n")
+        else
+          File.write(out_path, "fake parquet from duckdb\n")
+        end
       end
       puts "duckdb ok"
     SCRIPT

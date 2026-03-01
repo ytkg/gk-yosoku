@@ -75,11 +75,15 @@ DuckDB/Parquet 併用フロー（並走用）:
 ```bash
 make parquet-bootstrap FROM=2025-01-01 TO=2026-02-25
 make features-duckdb FROM=2025-01-01 TO=2026-02-25
+make split-duckdb FROM=2025-01-01 TO=2026-02-25 TRAIN_TO=2026-01-31
+make validate-duckdb FROM=2025-01-01 TO=2026-02-25
 ```
 
 補足:
 - `make parquet-bootstrap`: `data/raw/*.csv` から `data/lake` に Parquet を作成
 - `make features-duckdb`: 既存 `build_features` 実行後、`data/lake/features` に Parquet を作成
+- `make split-duckdb`: `data/lake/features` から `train.csv` / `valid.csv` と mart Parquet を作成
+- `make validate-duckdb`: CSV features と Parquet features の差分検証レポートを作成
 - DBファイル既定値: `data/duckdb/gk_yosoku.duckdb`
 
 補足:
