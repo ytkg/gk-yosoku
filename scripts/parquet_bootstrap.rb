@@ -4,7 +4,8 @@
 require "date"
 require "fileutils"
 require "optparse"
-require_relative "lib/duckdb_runner"
+require_relative "lib/storage/duckdb_client"
+require_relative "lib/storage/parquet_writer"
 
 class ParquetBootstrap
   def initialize(from_date:, to_date:, in_dir:, lake_dir:, db_path:)
@@ -14,7 +15,8 @@ class ParquetBootstrap
 
     @in_dir = in_dir
     @lake_dir = lake_dir
-    @db_path = db_path
+    @duckdb_client = GK::Storage::DuckDBClient.new(db_path: db_path)
+    @parquet_writer = GK::Storage::ParquetWriter.new(duckdb_client: @duckdb_client)
   end
 
   def run
@@ -25,7 +27,7 @@ class ParquetBootstrap
   private
 
   def check_duckdb!
-    GK::DuckDBRunner.ensure_duckdb!(
+    @duckdb_client.ensure_available!(
       message: "duckdb command not found. Please install duckdb CLI in Docker image."
     )
   end
@@ -54,18 +56,7 @@ class ParquetBootstrap
   end
 
   def copy_csv_to_parquet(csv_path, out_path)
-    FileUtils.mkdir_p(File.dirname(out_path))
-    sql = <<~SQL
-      COPY (
-        SELECT
-          *,
-          UPPER(TRIM(COALESCE(class, ''))) AS class_normalized
-        FROM read_csv_auto(#{GK::DuckDBRunner.sql_quote(csv_path)}, HEADER=TRUE)
-      )
-      TO #{GK::DuckDBRunner.sql_quote(out_path)}
-      (FORMAT PARQUET, COMPRESSION ZSTD);
-    SQL
-    GK::DuckDBRunner.run_sql!(db_path: @db_path, sql: sql)
+    @parquet_writer.copy_results_csv_to_parquet(csv_path: csv_path, out_path: out_path)
   end
 end
 
