@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "json"
+require "json-schema"
 require "open3"
 require "rbconfig"
 require "sinatra/base"
@@ -35,6 +36,11 @@ module GK
       if url.empty?
         status 422
         return json_error("invalid_request", "url is required", { "field" => "url" })
+      end
+      schema_errors = validate_predict_request(payload)
+      unless schema_errors.empty?
+        status 422
+        return json_error("invalid_request", "request payload does not match schema", { "errors" => schema_errors })
       end
 
       cmd = [RbConfig.ruby, "scripts/predict_race.rb", *GK::PredictCommandBuilder.build(payload)]
@@ -111,6 +117,19 @@ module GK
       JSON.parse(out)
     rescue JSON::ParserError
       raise "predict output is not valid JSON"
+    end
+
+    def validate_predict_request(payload)
+      JSON::Validator.fully_validate(predict_request_schema, payload)
+    end
+
+    def predict_request_schema
+      @predict_request_schema ||= JSON.parse(
+        File.read(
+          File.expand_path("../../docs/api/predict-request.schema.json", __dir__),
+          encoding: "UTF-8"
+        )
+      )
     end
   end
 end

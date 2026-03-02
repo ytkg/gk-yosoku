@@ -57,6 +57,7 @@ make help
 
 - `docs/api/predict-success.schema.json`
 - `docs/api/predict-error.schema.json`
+- `docs/api/predict-request.schema.json`
 - バージョニング運用: `docs/api/contract-versioning.md`
 
 起動:

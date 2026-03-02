@@ -87,6 +87,15 @@ RSpec.describe GK::PredictAPI do
     expect(body["detail"]).to include("field" => "url")
   end
 
+  it "schema不一致のpayloadは invalid_request を返す" do
+    post "/predict", JSON.generate("url" => 123), { "CONTENT_TYPE" => "application/json", "HTTP_HOST" => "localhost" }
+
+    expect(last_response.status).to eq(422)
+    body = JSON.parse(last_response.body)
+    expect(body["code"]).to eq("invalid_request")
+    expect(body["detail"]).to include("errors")
+  end
+
   it "POST /predict タイムアウト時は predict_timeout を返す" do
     allow_any_instance_of(GK::PredictAPI).to receive(:timeout_seconds).and_return(0.01)
     allow(Open3).to receive(:capture3) { sleep 0.05 }
