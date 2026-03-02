@@ -65,6 +65,16 @@ module GK
       validate_window_key!(manifest, "valid_window")
     end
 
+    def validate_feature_set_version!(manifest, expected_version)
+      return if manifest.nil?
+
+      expected = expected_version.to_s
+      actual = manifest["feature_set_version"].to_s
+      return if expected.empty? || actual.empty? || expected == actual
+
+      raise "model manifest mismatch: feature_set_version expected=#{expected} actual=#{actual}"
+    end
+
     def summary(manifest)
       return nil if manifest.nil?
 

@@ -167,7 +167,7 @@ class LightGBMTrainer
     manifest = GK::ModelManifest.build(
       model_id: File.basename(File.dirname(model_path)).to_s.empty? ? "ml" : File.basename(File.dirname(model_path)),
       target_col: @target_col,
-      feature_set_version: "v1",
+      feature_set_version: GK::FeatureSchema::FEATURE_SET_VERSION,
       feature_columns: @feature_columns,
       train_from: train_dates.min.iso8601,
       train_to: train_dates.max.iso8601,

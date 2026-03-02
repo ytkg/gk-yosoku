@@ -2,6 +2,7 @@
 
 module GK
   module FeatureSchema
+    FEATURE_SET_VERSION = "v1"
     CATEGORICAL_FEATURES = %w[venue player_name mark_symbol leg_style].freeze
     NUMERIC_FEATURES = %w[
       race_number
