@@ -38,6 +38,8 @@ HIT5_TOP1_ENCODERS ?= data/ml_top1/tuning_v2/trial_002/encoders.json
 DOCKER_RUN = docker run --rm -v "$$PWD:/app" -w /app $(IMAGE)
 DOCKER_RUN_API = docker run --rm -p 4567:4567 -v "$$PWD:/app" -w /app $(IMAGE)
 API_TIMEOUT_CHECK_CONTAINER ?= gk-yosoku-api-timeout-check
+API_PARITY_CONTAINER ?= gk-yosoku-api-parity
+API_PARITY_PORT ?= 4568
 API_PID_FILE ?= tmp/api.pid
 API_LOG_FILE ?= tmp/api.log
 
@@ -46,7 +48,7 @@ include .env
 export
 endif
 
-.PHONY: help build api-start api-start-bg api-stop api-logs api-health api-predict api-predict-timeout-check api-smoke collect parquet-bootstrap features features-duckdb features-duckdb-sql split split-duckdb validate-duckdb eval-duckdb backup-duckdb restore-duckdb features-exacta train eval train-top1 eval-top1 train-exacta eval-exacta-model train-dual eval-dual train-weakodds eval-weakodds train-top1-weakodds eval-top1-weakodds exotic eval-exotic exotic-weakodds eval-exotic-weakodds learn-hit5-profile learn-exacta-profile eval-exacta-profile tune tune-top1 tune-top3 tune-top3-noplayer tune-weakodds tune-top1-weakodds cv cv-top1 importance predict predict-exacta predict-balanced predict-trifecta predict-hit5 predict-hit5-profile predict-tri5 predict-weakodds test pipeline full
+.PHONY: help build api-start api-start-bg api-stop api-logs api-health api-predict api-predict-timeout-check api-smoke api-cli-parity manifest-inspect collect parquet-bootstrap features features-duckdb features-duckdb-sql split split-duckdb validate-duckdb eval-duckdb backup-duckdb restore-duckdb features-exacta train eval train-top1 eval-top1 train-exacta eval-exacta-model train-dual eval-dual train-weakodds eval-weakodds train-top1-weakodds eval-top1-weakodds exotic eval-exotic exotic-weakodds eval-exotic-weakodds learn-hit5-profile learn-exacta-profile eval-exacta-profile tune tune-top1 tune-top3 tune-top3-noplayer tune-weakodds tune-top1-weakodds cv cv-top1 importance predict predict-exacta predict-balanced predict-trifecta predict-hit5 predict-hit5-profile predict-tri5 predict-weakodds test pipeline full
 
 help:
 	@echo "Targets:"
@@ -59,6 +61,8 @@ help:
 	@echo "  make api-predict PAYLOAD=docs/api/request-examples/predict-basic.json"
 	@echo "  make api-predict-timeout-check"
 	@echo "  make api-smoke"
+	@echo "  make api-cli-parity"
+	@echo "  make manifest-inspect MODEL_DIR=data/ml"
 	@echo "  make collect   FROM=YYYY-MM-DD TO=YYYY-MM-DD SLEEP=0.2 CACHE=--cache"
 	@echo "  make parquet-bootstrap FROM=YYYY-MM-DD TO=YYYY-MM-DD LAKE_DIR=data/lake PARQUET_DB=data/duckdb/gk_yosoku.duckdb"
 	@echo "  make features  FROM=YYYY-MM-DD TO=YYYY-MM-DD"
@@ -167,6 +171,21 @@ api-predict-timeout-check:
 
 api-smoke:
 	bash scripts/api_smoke.sh
+
+api-cli-parity:
+	@set -eu; \
+	docker rm -f "$(API_PARITY_CONTAINER)" >/dev/null 2>&1 || true; \
+	trap 'docker rm -f "$(API_PARITY_CONTAINER)" >/dev/null 2>&1 || true' EXIT; \
+	docker run -d --name "$(API_PARITY_CONTAINER)" -p "$(API_PARITY_PORT):4567" -v "$$PWD:/app" -w /app "$(IMAGE)" bundle exec rackup -s webrick -o 0.0.0.0 -p 4567 >/dev/null; \
+	for i in 1 2 3 4 5 6 7 8 9 10; do \
+		if curl -fsS "http://127.0.0.1:$(API_PARITY_PORT)/health" >/dev/null 2>&1; then break; fi; \
+		sleep 1; \
+	done; \
+	ruby scripts/api_cli_parity.rb --payload docs/api/fixtures/parity_request.json --api-url "http://127.0.0.1:$(API_PARITY_PORT)/predict" --image "$(IMAGE)"
+
+manifest-inspect:
+	@if [ -z "$(MODEL_DIR)" ]; then echo "MODEL_DIR is required"; exit 1; fi
+	ruby scripts/inspect_model_manifest.rb --manifest "$(MODEL_DIR)/model_manifest.json"
 
 collect:
 	$(DOCKER_RUN) ruby scripts/collect_data.rb \

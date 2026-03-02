@@ -97,8 +97,10 @@ class RacePredictor
     odds_by_first = parse_2shatan_odds(html)
     pair_odds = parse_2shatan_pair_odds(html)
     trifecta_odds = parse_3rentan_odds(html)
-    print_odds_source_note
-    verify_odds_direction(html, pair_odds, trifecta_odds)
+    unless @output_json
+      print_odds_source_note
+      verify_odds_direction(html, pair_odds, trifecta_odds)
+    end
     entries.each do |e|
       e[:odds_2shatan_min_first] = odds_by_first[e[:car_number]] || 9999.9
     end
@@ -1065,6 +1067,17 @@ class RacePredictor
   end
 end
 
+API_ERROR_EXIT_CODES = {
+  "invalid_request" => 2,
+  "predict_failed" => 3,
+  "predict_timeout" => 4,
+  "internal_error" => 5
+}.freeze
+
+def api_error_exit_code(code)
+  API_ERROR_EXIT_CODES.fetch(code.to_s, 1)
+end
+
 def run_via_api!(api_url, options)
   uri = URI.parse(api_url)
   payload = options.reject { |k, _| k == :api_url }.transform_keys(&:to_s)
@@ -1079,21 +1092,20 @@ def run_via_api!(api_url, options)
 
   if res.code.to_i == 200 && body["code"] == "ok"
     detail = body["detail"] || {}
-    print(detail["stdout"].to_s)
-    warn(detail["stderr"].to_s) unless detail["stderr"].to_s.empty?
+    puts JSON.pretty_generate(detail)
     return
   end
 
   warn("#{body["code"]}: #{body["message"]}")
   warn(JSON.pretty_generate(body["detail"])) unless body["detail"].nil?
-  exit 1
+  exit api_error_exit_code(body["code"])
 rescue JSON::ParserError
   warn "invalid API response: non-JSON body"
   warn res.body.to_s if defined?(res)
-  exit 1
+  exit 6
 rescue StandardError => e
   warn "api request failed: #{e.message}"
-  exit 1
+  exit 7
 end
 
 if __FILE__ == $PROGRAM_NAME

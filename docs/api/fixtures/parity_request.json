@@ -1,0 +1,12 @@
+{
+  "url": "https://keirin.kdreams.jp/toride/racedetail/2320260225030004/",
+  "model_top3": "data/ml/model.txt",
+  "encoders_top3": "data/ml/encoders.json",
+  "model_top1": "data/ml_top1/model.txt",
+  "encoders_top1": "data/ml_top1/encoders.json",
+  "raw_dir": "docs/api/fixtures/raw",
+  "cache_dir": "docs/api/fixtures/cache",
+  "use_cache": true,
+  "exacta_top": 5,
+  "trifecta_top": 5
+}

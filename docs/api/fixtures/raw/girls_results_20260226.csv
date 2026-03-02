@@ -1,0 +1,4 @@
+race_date,venue,race_number,racedetail_id,show_result_url,rank,result_status,frame_number,car_number,player_name,age,class,raw_cells
+2026-02-26,toride,1,x,u,1,normal,,1,A,,,
+2026-02-26,toride,1,x,u,2,normal,,2,B,,,
+2026-02-26,toride,1,x,u,3,normal,,3,C,,,
