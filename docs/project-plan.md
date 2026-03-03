@@ -34,10 +34,10 @@
 ## パイプライン構成（現行）
 
 - 取得: `scripts/collect_data.rb`
-- 特徴量作成: `scripts/build_features.rb`
-- 分割: `scripts/split_features.rb`
+- 特徴量作成: `scripts/parquet_bootstrap.rb` + `scripts/build_features_duckdb.rb`
+- 分割: `scripts/split_features_duckdb.rb`
 - 学習: `scripts/train_lightgbm.rb`
-- 評価: `scripts/evaluate_lightgbm.rb`
+- 評価: `scripts/evaluate_lightgbm_duckdb.rb`
 - exacta特徴量作成: `scripts/build_exacta_features.rb`
 - exacta学習: `scripts/train_exacta_lightgbm.rb`
 - exacta評価: `scripts/evaluate_exacta_lightgbm.rb`
@@ -48,10 +48,11 @@
 ```bash
 make build
 make collect FROM=2025-01-01 TO=2025-12-31 SLEEP=0.2
-make features FROM=2025-01-01 TO=2026-02-25
-make split FROM=2025-01-01 TO=2026-02-25 TRAIN_TO=2026-01-31
+make parquet-bootstrap FROM=2025-01-01 TO=2026-02-25
+make features-duckdb FROM=2025-01-01 TO=2026-02-25
+make split-duckdb FROM=2025-01-01 TO=2026-02-25 TRAIN_TO=2026-01-31
 make train
-make eval
+make eval-duckdb FROM=2026-02-01 TO=2026-02-25
 make train-top1
 make eval-top1
 make features-exacta

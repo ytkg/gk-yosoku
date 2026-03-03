@@ -24,8 +24,8 @@
 
 ## 予測フロー
 
-1. `make features` で特徴量作成
-2. `make split` で学習/検証データ分割
+1. `make parquet-bootstrap` と `make features-duckdb` で特徴量作成
+2. `make split-duckdb` で学習/検証データ分割
 3. `make train` と `make train-top1` で2モデル学習
 4. `make exotic` で2連単/3連単候補を生成
 5. `make eval-exotic` で hit@N を確認
@@ -211,12 +211,6 @@ make backup-duckdb
 make restore-duckdb SRC=data/duckdb_backup/gk_yosoku_YYYYMMDDTHHMMSSZ.duckdb
 ```
 
-CSV中心フロー（compat only）:
-
-```bash
-make features FROM=2025-01-01 TO=2026-02-25
-```
-
 補足:
 - `make parquet-bootstrap`: `data/raw/*.csv` から `data/lake` に Parquet を作成
 - `make features-duckdb`: 既定は `sql_v1` モード（`data/lake/raw_results` から SQL 主導で features CSV/Parquet を生成）
@@ -266,12 +260,6 @@ make features FROM=2025-01-01 TO=2026-02-25
 make split-duckdb FROM=2025-01-01 TO=2026-02-25 TRAIN_TO=2026-01-31
 ```
 
-CSV中心フロー（compat only）:
-
-```bash
-make split FROM=2025-01-01 TO=2026-02-25 TRAIN_TO=2026-01-31
-```
-
 ### 4. 学習
 
 ```bash
@@ -315,12 +303,6 @@ make train-top1-weakodds WEAK_DROP="odds_2shatan_min_first,race_rel_odds_2shatan
 
 ```bash
 make eval-duckdb FROM=2026-02-01 TO=2026-02-25
-```
-
-CSV中心フロー（compat only）:
-
-```bash
-make eval
 ```
 
 1着モデルを評価する場合:
@@ -678,7 +660,7 @@ make collect FROM=2026-01-01 TO=2026-02-25 CACHE=--no-cache SLEEP=0.1
 - `data/ml/tuning/tune_leaderboard.csv`
 - `data/ml/tuning/best_params.json`
 
-## 指標（`make eval`）
+## 指標（`make eval-duckdb`）
 
 - `auc`
 - `top3_exact_match_rate`
@@ -695,7 +677,7 @@ make collect FROM=2026-01-01 TO=2026-02-25 CACHE=--no-cache SLEEP=0.1
 通常は `make` 推奨です。  
 直接実行も可能ですが、`docker run ... ruby scripts/*.rb` を都度書く必要があります。
 
-`top1` 列を使うため、古い `features_*.csv` を使っている場合は `make features` を再実行してください。
+`top1` 列を使うため、古い特徴量がある場合は `make parquet-bootstrap` と `make features-duckdb` を再実行してください。
 
 ## ドキュメント
 
