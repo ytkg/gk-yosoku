@@ -70,9 +70,6 @@ help:
 	@echo "  make split-duckdb FROM=YYYY-MM-DD TO=YYYY-MM-DD TRAIN_TO=YYYY-MM-DD"
 	@echo "  make validate-duckdb FROM=YYYY-MM-DD TO=YYYY-MM-DD"
 	@echo "  make eval-duckdb FROM=YYYY-MM-DD TO=YYYY-MM-DD EVAL_DUCKDB_OPTS='--target-col top3'"
-	@echo "  make features  FROM=YYYY-MM-DD TO=YYYY-MM-DD (compat only)"
-	@echo "  make split     FROM=YYYY-MM-DD TO=YYYY-MM-DD TRAIN_TO=YYYY-MM-DD (compat only)"
-	@echo "  make eval (compat only)"
 	@echo "  make backup-duckdb"
 	@echo "  make restore-duckdb SRC=path/to/gk_yosoku_YYYYMMDDTHHMMSSZ.duckdb"
 	@echo "  make features-exacta"
@@ -204,9 +201,9 @@ parquet-bootstrap:
 		--db-path $(PARQUET_DB)
 
 features:
-	$(DOCKER_RUN) ruby scripts/build_features.rb \
-		--from-date $(FROM) \
-		--to-date $(TO)
+	@echo "[deprecated] make features is now DuckDB-first. running parquet-bootstrap + features-duckdb"
+	$(MAKE) parquet-bootstrap FROM=$(FROM) TO=$(TO) LAKE_DIR=$(LAKE_DIR) PARQUET_DB=$(PARQUET_DB)
+	$(MAKE) features-duckdb FROM=$(FROM) TO=$(TO) LAKE_DIR=$(LAKE_DIR) PARQUET_DB=$(PARQUET_DB) FEATURES_DUCKDB_MODE=$(FEATURES_DUCKDB_MODE)
 
 features-duckdb:
 	$(DOCKER_RUN) ruby scripts/build_features_duckdb.rb \
@@ -223,10 +220,8 @@ features-duckdb-sql:
 	$(MAKE) features-duckdb FEATURES_DUCKDB_MODE=sql_v1
 
 split:
-	$(DOCKER_RUN) ruby scripts/split_features.rb \
-		--from-date $(FROM) \
-		--to-date $(TO) \
-		--train-to $(TRAIN_TO)
+	@echo "[deprecated] make split now delegates to split-duckdb"
+	$(MAKE) split-duckdb FROM=$(FROM) TO=$(TO) TRAIN_TO=$(TRAIN_TO) LAKE_DIR=$(LAKE_DIR) PARQUET_DB=$(PARQUET_DB)
 
 split-duckdb:
 	$(DOCKER_RUN) ruby scripts/split_features_duckdb.rb \
@@ -284,7 +279,8 @@ train:
 	$(DOCKER_RUN) ruby scripts/train_lightgbm.rb --target-col top3 --weight-mode $(WEIGHT_MODE) --decay-half-life-days $(DECAY_HALF_LIFE_DAYS) --min-sample-weight $(MIN_SAMPLE_WEIGHT) $(TOP3_TRAIN_OPTS)
 
 eval:
-	$(DOCKER_RUN) ruby scripts/evaluate_lightgbm.rb --target-col top3 $(TOP3_EVAL_OPTS)
+	@echo "[deprecated] make eval now delegates to eval-duckdb"
+	$(MAKE) eval-duckdb FROM=$(FROM) TO=$(TO) LAKE_DIR=$(LAKE_DIR) PARQUET_DB=$(PARQUET_DB) EVAL_DUCKDB_OPTS="$(TOP3_EVAL_OPTS)"
 
 train-top1:
 	$(DOCKER_RUN) ruby scripts/train_lightgbm.rb --target-col top1 --out-dir data/ml_top1 --weight-mode $(WEIGHT_MODE) --decay-half-life-days $(DECAY_HALF_LIFE_DAYS) --min-sample-weight $(MIN_SAMPLE_WEIGHT) $(TOP1_TRAIN_OPTS)
@@ -429,11 +425,13 @@ test:
 	$(DOCKER_RUN) bundle exec rspec
 
 pipeline:
-	$(MAKE) features FROM=$(FROM) TO=$(TO)
-	$(MAKE) split FROM=$(FROM) TO=$(TO) TRAIN_TO=$(TRAIN_TO)
+	$(MAKE) parquet-bootstrap FROM=$(FROM) TO=$(TO) LAKE_DIR=$(LAKE_DIR) PARQUET_DB=$(PARQUET_DB)
+	$(MAKE) features-duckdb FROM=$(FROM) TO=$(TO) LAKE_DIR=$(LAKE_DIR) PARQUET_DB=$(PARQUET_DB)
+	$(MAKE) split-duckdb FROM=$(FROM) TO=$(TO) TRAIN_TO=$(TRAIN_TO) LAKE_DIR=$(LAKE_DIR) PARQUET_DB=$(PARQUET_DB)
+	$(MAKE) validate-duckdb FROM=$(FROM) TO=$(TO) LAKE_DIR=$(LAKE_DIR) PARQUET_DB=$(PARQUET_DB)
 	$(MAKE) features-exacta
 	$(MAKE) train
-	$(MAKE) eval
+	$(MAKE) eval-duckdb FROM=$(FROM) TO=$(TO) LAKE_DIR=$(LAKE_DIR) PARQUET_DB=$(PARQUET_DB)
 
 full:
 	$(MAKE) collect FROM=$(FROM) TO=$(TO) SLEEP=$(SLEEP) CACHE=$(CACHE)
