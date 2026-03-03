@@ -61,9 +61,9 @@ jobs:
             duckdb-short-parity-history-${{ github.ref_name }}-
             duckdb-short-parity-history-
 
-      - name: Run short parity flow (DuckDB required; CSV is baseline only)
+      - name: Run short parity flow (DuckDB-only)
         run: |
-          make features FROM=2026-02-25 TO=2026-02-26
+          make parquet-bootstrap FROM=2026-02-25 TO=2026-02-26
           make features-duckdb FROM=2026-02-25 TO=2026-02-26
           make validate-duckdb FROM=2026-02-25 TO=2026-02-26
 

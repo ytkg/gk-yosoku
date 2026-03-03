@@ -56,7 +56,7 @@ PRでは次の2つを必須チェックとして扱います。
 2. `duckdb-short-parity`（DuckDB生成結果とCSV基準の整合チェック）
 
 補足:
-- `duckdb-short-parity` 内の CSV 系処理は比較基準データ生成のためで、通常運用経路は DuckDB 系コマンドです。
+- `duckdb-short-parity` は DuckDB 系コマンドのみで実行します。
 
 ## ローカル Prediction API（Sinatra）
 
