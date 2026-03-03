@@ -47,7 +47,7 @@ include .env
 export
 endif
 
-.PHONY: help build api-start api-start-bg api-stop api-logs api-health api-predict api-predict-timeout-check api-smoke api-cli-parity manifest-inspect collect parquet-bootstrap features features-duckdb features-duckdb-sql split split-duckdb validate-duckdb eval-duckdb backup-duckdb restore-duckdb features-exacta train eval train-top1 eval-top1 train-exacta eval-exacta-model train-dual eval-dual train-weakodds eval-weakodds train-top1-weakodds eval-top1-weakodds exotic eval-exotic exotic-weakodds eval-exotic-weakodds learn-hit5-profile learn-exacta-profile eval-exacta-profile tune tune-top1 tune-top3 tune-top3-noplayer tune-weakodds tune-top1-weakodds cv cv-top1 importance predict predict-exacta predict-balanced predict-trifecta predict-hit5 predict-hit5-profile predict-tri5 predict-weakodds test pipeline full
+.PHONY: help build api-start api-start-bg api-stop api-logs api-health api-predict api-predict-timeout-check api-smoke api-cli-parity manifest-inspect collect parquet-bootstrap features features-duckdb features-duckdb-sql split split-duckdb validate-duckdb eval-duckdb backup-duckdb restore-duckdb features-exacta train eval train-top1 eval-top1 train-exacta eval-exacta-model train-dual eval-dual train-weakodds eval-weakodds train-top1-weakodds eval-top1-weakodds exotic eval-exotic exotic-weakodds eval-exotic-weakodds learn-hit5-profile learn-exacta-profile eval-exacta-profile tune tune-top1 tune-top3 tune-top3-noplayer tune-weakodds tune-top1-weakodds cv cv-top1 importance predict predict-exacta predict-balanced predict-trifecta predict-hit5 predict-hit5-profile predict-tri5 predict-weakodds test test-duckdb pipeline full
 
 help:
 	@echo "Targets:"
@@ -109,6 +109,7 @@ help:
 	@echo "  make predict-tri5 RACE_URL='https://keirin.kdreams.jp/.../racedetail/xxxxxxxxxxxxxxxx/'"
 	@echo "  make predict-weakodds RACE_URL='https://keirin.kdreams.jp/.../racedetail/xxxxxxxxxxxxxxxx/'"
 	@echo "  make test"
+	@echo "  make test-duckdb"
 	@echo "  make pipeline  FROM=YYYY-MM-DD TO=YYYY-MM-DD TRAIN_TO=YYYY-MM-DD"
 	@echo "  make full      FROM=YYYY-MM-DD TO=YYYY-MM-DD TRAIN_TO=YYYY-MM-DD SLEEP=0.2 CACHE=--cache"
 
@@ -419,6 +420,15 @@ predict-weakodds:
 
 test:
 	$(DOCKER_RUN) bundle exec rspec
+
+test-duckdb:
+	$(DOCKER_RUN) bundle exec rspec \
+		spec/scripts/parquet_bootstrap_spec.rb \
+		spec/scripts/build_features_duckdb_spec.rb \
+		spec/scripts/split_features_duckdb_spec.rb \
+		spec/scripts/validate_duckdb_parity_spec.rb \
+		spec/scripts/evaluate_lightgbm_duckdb_spec.rb \
+		spec/scripts/backup_duckdb_spec.rb
 
 pipeline:
 	$(MAKE) parquet-bootstrap FROM=$(FROM) TO=$(TO) LAKE_DIR=$(LAKE_DIR) PARQUET_DB=$(PARQUET_DB)
