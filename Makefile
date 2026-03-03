@@ -25,7 +25,6 @@ LAKE_DIR ?= data/lake
 PARQUET_DB ?= data/duckdb/gk_yosoku.duckdb
 EVAL_DUCKDB_OPTS ?=
 DUCKDB_BACKUP_DIR ?= data/duckdb_backup
-FEATURES_DUCKDB_MODE ?= sql_v1
 HIT5_PROFILE ?= data/ml/exotic_profile_hit5.json
 HIT5_LEARN_OPTS ?=
 EXACTA_PROFILE ?= data/ml/exotic_profile_exacta_hit1.json
@@ -203,21 +202,18 @@ parquet-bootstrap:
 features:
 	@echo "[deprecated] make features is now DuckDB-first. running parquet-bootstrap + features-duckdb"
 	$(MAKE) parquet-bootstrap FROM=$(FROM) TO=$(TO) LAKE_DIR=$(LAKE_DIR) PARQUET_DB=$(PARQUET_DB)
-	$(MAKE) features-duckdb FROM=$(FROM) TO=$(TO) LAKE_DIR=$(LAKE_DIR) PARQUET_DB=$(PARQUET_DB) FEATURES_DUCKDB_MODE=$(FEATURES_DUCKDB_MODE)
+	$(MAKE) features-duckdb FROM=$(FROM) TO=$(TO) LAKE_DIR=$(LAKE_DIR) PARQUET_DB=$(PARQUET_DB)
 
 features-duckdb:
 	$(DOCKER_RUN) ruby scripts/build_features_duckdb.rb \
 		--from-date $(FROM) \
 		--to-date $(TO) \
-		--in-dir data/raw \
 		--out-dir data/features \
-		--raw-html-dir data/raw_html \
 		--lake-dir $(LAKE_DIR) \
-		--db-path $(PARQUET_DB) \
-		--mode $(FEATURES_DUCKDB_MODE)
+		--db-path $(PARQUET_DB)
 
 features-duckdb-sql:
-	$(MAKE) features-duckdb FEATURES_DUCKDB_MODE=sql_v1
+	$(MAKE) features-duckdb
 
 split:
 	@echo "[deprecated] make split now delegates to split-duckdb"
