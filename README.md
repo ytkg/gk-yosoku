@@ -189,13 +189,7 @@ docker run --rm -v "$PWD:/app" -w /app gk-yosoku ruby scripts/collect_data.rb \
   --max-retries 3 --retry-base-sleep 0.5 --sleep 0.2
 ```
 
-### 2. 特徴量作成
-
-```bash
-make features FROM=2025-01-01 TO=2026-02-25
-```
-
-DuckDB/Parquet 併用フロー（並走用）:
+### 2. 特徴量作成（標準: DuckDB/Parquet）
 
 ```bash
 make parquet-bootstrap FROM=2025-01-01 TO=2026-02-25
@@ -205,6 +199,12 @@ make validate-duckdb FROM=2025-01-01 TO=2026-02-25
 make eval-duckdb FROM=2026-02-01 TO=2026-02-25
 make backup-duckdb
 make restore-duckdb SRC=data/duckdb_backup/gk_yosoku_YYYYMMDDTHHMMSSZ.duckdb
+```
+
+CSV中心フロー（compat only）:
+
+```bash
+make features FROM=2025-01-01 TO=2026-02-25
 ```
 
 補足:
@@ -250,7 +250,13 @@ make restore-duckdb SRC=data/duckdb_backup/gk_yosoku_YYYYMMDDTHHMMSSZ.duckdb
   - 払戻・人気順テーブル
   - `parse_race_detail_full_json` で取れる全テーブル/リンク情報
 
-### 3. train/valid 分割
+### 3. train/valid 分割（標準: DuckDB）
+
+```bash
+make split-duckdb FROM=2025-01-01 TO=2026-02-25 TRAIN_TO=2026-01-31
+```
+
+CSV中心フロー（compat only）:
 
 ```bash
 make split FROM=2025-01-01 TO=2026-02-25 TRAIN_TO=2026-01-31
@@ -295,7 +301,13 @@ make train-weakodds WEAK_DROP="odds_2shatan_min_first,race_rel_odds_2shatan_rank
 make train-top1-weakodds WEAK_DROP="odds_2shatan_min_first,race_rel_odds_2shatan_rank"
 ```
 
-### 5. 評価
+### 5. 評価（標準: DuckDB）
+
+```bash
+make eval-duckdb FROM=2026-02-01 TO=2026-02-25
+```
+
+CSV中心フロー（compat only）:
 
 ```bash
 make eval
