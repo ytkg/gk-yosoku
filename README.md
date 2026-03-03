@@ -682,3 +682,4 @@ make collect FROM=2026-01-01 TO=2026-02-25 CACHE=--no-cache SLEEP=0.1
 ## ドキュメント
 
 - 全体像: `docs/project-plan.md`
+- DuckDBロールバック手順: `docs/duckdb-rollback-playbook.md`
