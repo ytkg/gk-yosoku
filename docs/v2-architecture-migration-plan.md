@@ -6,6 +6,20 @@
 - モデル再現性と安全な切替を担保する
 - GUI/API拡張に耐える推論基盤へ移行する
 
+## 進捗ステータス（2026-03-03時点）
+
+- PR1（Feature Engine単一化）: 完了
+- PR2（Model Registry + スキーマ契約）: 完了
+- PR3（Prediction API正式化）: 完了
+- PR4（DuckDB/Parquet移行）: 進行中
+
+### PR4内訳
+
+- Phase 1（CSV + Parquet 二重出力）: 完了
+- Phase 2（特徴量生成のDuckDB優先化）: 完了（`sql_v1`）
+- Phase 3（split/eval の DuckDB 化）: 完了
+- Phase 4（CSV中心フロー廃止）: 未完了（互換用途として残置）
+
 ## v2 ディレクトリ構成案
 
 ```text
@@ -173,3 +187,29 @@ data/
 3. `make parquet-bootstrap`（初期化）を追加
 4. `make features-duckdb`（DuckDB版特徴量生成）を追加
 5. CIに「CSV版 vs DuckDB版」の整合テストを追加
+
+## ローカル運用ランブック（デプロイなし）
+
+### 標準実行手順
+
+1. `make parquet-bootstrap FROM=YYYY-MM-DD TO=YYYY-MM-DD`
+2. `make features-duckdb FROM=YYYY-MM-DD TO=YYYY-MM-DD`
+3. `make split-duckdb FROM=YYYY-MM-DD TO=YYYY-MM-DD TRAIN_TO=YYYY-MM-DD`
+4. `make validate-duckdb FROM=YYYY-MM-DD TO=YYYY-MM-DD`
+5. `make eval-duckdb FROM=YYYY-MM-DD TO=YYYY-MM-DD`
+
+### トラブルシュート
+
+1. `duckdb command not found`
+  - Docker実行経路（`make ...`）で動かし、イメージ内のduckdbを利用する
+2. `not found: data/lake/.../*.parquet`
+  - `parquet-bootstrap` の日付範囲と入力CSVの存在を確認する
+3. `duckdb parity failed`
+  - `reports/duckdb_validation` の日次summary/差分CSVを確認し、キー不一致か値差分かを先に切り分ける
+4. `docker socket permission denied`
+  - Docker Desktop起動状態とローカルユーザーのDockerソケット権限を確認する
+
+## CSV中心フローの扱い
+
+- 学習・評価の標準フローは DuckDB/Parquet を採用する
+- CSV中心フローは互換用途・比較検証用途に限定する
