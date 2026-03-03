@@ -33,6 +33,26 @@
 2. CSV系で発見した差分は `validate-duckdb` レポートに集約する
 3. 互換用途の解除条件（完全移行）は別Issueで管理する
 
+## CSV互換解除チェックリスト（完全DuckDB移行判定）
+
+1. 直近4週間のPRで `duckdb-short-parity` が全件成功
+2. `validate-duckdb` の差分メトリクスが連続4週間で閾値内
+3. 日常運用手順から `make features` / `make split` / `make eval` を参照しない
+4. 障害時の暫定運用手順が DuckDB系のみで成立している
+5. 互換解除後のロールバック手順（復帰条件と担当）が明文化されている
+
+## 判定に必要な計測・ログ
+
+1. GitHub Actions: `duckdb-short-parity` の成功履歴
+2. `reports/duckdb_validation/*.json` の日次差分
+3. 運用手順ドキュメント更新履歴（README/docs）
+
+## 解除判定の運用手順
+
+1. 毎週1回、差分メトリクスとCI履歴をレビューする
+2. チェックリスト5項目がすべて満たされたら、削除/非推奨化の実装Issueを起票する
+3. 実装Issue完了後、CSV互換フローを正式に終了する
+
 ## 実装タスク分解
 
 1. Makefile/READMEのCSV互換注記統一
