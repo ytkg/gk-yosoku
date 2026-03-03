@@ -10,8 +10,9 @@ require_relative "lib/duckdb_runner"
 
 class DuckDBFeatureMaterializer
   TEMPLATE_PATH = File.expand_path("../sql/features_v1.sql", __dir__)
+  STAGING_TEMPLATE_PATH = File.expand_path("../sql/staging_raw_results.sql", __dir__)
 
-  def initialize(from_date:, to_date:, in_dir:, out_dir:, raw_html_dir:, lake_dir:, db_path:, feature_set_version:, skip_build:, mode:, sql_template:)
+  def initialize(from_date:, to_date:, in_dir:, out_dir:, raw_html_dir:, lake_dir:, db_path:, feature_set_version:, skip_build:, mode:, sql_template:, staging_sql_template:)
     @from_date = Date.iso8601(from_date)
     @to_date = Date.iso8601(to_date)
     raise ArgumentError, "from_date must be <= to_date" if @from_date > @to_date
@@ -25,6 +26,7 @@ class DuckDBFeatureMaterializer
     @skip_build = skip_build
     @mode = mode
     @sql_template = sql_template
+    @staging_sql_template = staging_sql_template
   end
 
   def run
@@ -106,15 +108,18 @@ class DuckDBFeatureMaterializer
   end
 
   def build_sql_v1(raw_results_glob:, target_date:, out_csv:)
+    staging = File.read(@staging_sql_template, encoding: "UTF-8")
     template = File.read(@sql_template, encoding: "UTF-8")
     {
       "raw_results_glob" => raw_results_glob,
       "target_date" => target_date,
       "out_csv" => out_csv
     }.each do |key, value|
-      template = template.gsub("{{#{key}}}", value.to_s.gsub("'", "''"))
+      escaped = value.to_s.gsub("'", "''")
+      staging = staging.gsub("{{#{key}}}", escaped)
+      template = template.gsub("{{#{key}}}", escaped)
     end
-    template
+    "#{staging}\n\n#{template}"
   end
 end
 
@@ -129,7 +134,8 @@ options = {
   feature_set_version: "v1",
   skip_build: false,
   mode: "sql_v1",
-  sql_template: DuckDBFeatureMaterializer::TEMPLATE_PATH
+  sql_template: DuckDBFeatureMaterializer::TEMPLATE_PATH,
+  staging_sql_template: DuckDBFeatureMaterializer::STAGING_TEMPLATE_PATH
 }
 
 parser = OptionParser.new do |opts|
@@ -145,6 +151,7 @@ parser = OptionParser.new do |opts|
   opts.on("--skip-build", "build_features.rb の実行をスキップ") { options[:skip_build] = true }
   opts.on("--mode MODE", "csv_bridge or sql_v1 (default: sql_v1)") { |v| options[:mode] = v }
   opts.on("--sql-template PATH", "sql_v1 用SQLテンプレート") { |v| options[:sql_template] = v }
+  opts.on("--staging-sql-template PATH", "staging 用SQLテンプレート") { |v| options[:staging_sql_template] = v }
 end
 parser.parse!
 
@@ -164,5 +171,6 @@ DuckDBFeatureMaterializer.new(
   feature_set_version: options[:feature_set_version],
   skip_build: options[:skip_build],
   mode: options[:mode],
-  sql_template: options[:sql_template]
+  sql_template: options[:sql_template],
+  staging_sql_template: options[:staging_sql_template]
 ).run

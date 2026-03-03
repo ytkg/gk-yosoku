@@ -1,24 +1,7 @@
 COPY (
-  WITH raw_all AS (
+  WITH today AS (
     SELECT *
-    FROM read_parquet('{{raw_results_glob}}')
-  ),
-  raw_norm AS (
-    SELECT
-      CAST(race_date AS DATE) AS race_date,
-      venue,
-      CAST(race_number AS INTEGER) AS race_number,
-      racedetail_id,
-      player_name,
-      CAST(car_number AS INTEGER) AS car_number,
-      CAST(rank AS INTEGER) AS rank,
-      result_status,
-      COALESCE(raw_cells, '') AS raw_cells
-    FROM raw_all
-  ),
-  today AS (
-    SELECT *
-    FROM raw_norm
+    FROM staging_raw_results
     WHERE race_date = DATE '{{target_date}}'
       AND result_status = 'normal'
       AND rank BETWEEN 1 AND 7
@@ -30,7 +13,7 @@ COPY (
       COALESCE(SUM(CASE WHEN h.rank = 1 THEN 1 ELSE 0 END), 0) AS hist_wins,
       COALESCE(SUM(CASE WHEN h.rank <= 3 THEN 1 ELSE 0 END), 0) AS hist_top3
     FROM today t
-    LEFT JOIN raw_norm h
+    LEFT JOIN staging_raw_results h
       ON h.player_name = t.player_name
      AND h.race_date < t.race_date
      AND h.result_status = 'normal'
