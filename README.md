@@ -48,6 +48,16 @@ make build
 make help
 ```
 
+## CIチェック（PR時）
+
+PRでは次の2つを必須チェックとして扱います。
+
+1. `ruby40-scripts-spec`（Ruby 4.0.1 scripts spec + CLI/API parity）
+2. `duckdb-short-parity`（DuckDB生成結果とCSV基準の整合チェック）
+
+補足:
+- `duckdb-short-parity` 内の CSV 系処理は比較基準データ生成のためで、通常運用経路は DuckDB 系コマンドです。
+
 ## ローカル Prediction API（Sinatra）
 
 ローカル専用で `POST /predict` を提供します（デプロイは想定しません）。
