@@ -9,13 +9,15 @@ require "open3"
 require "optparse"
 
 class TimeSeriesCVRunner
-  def initialize(from_date:, to_date:, train_days:, valid_days:, step_days:, in_dir:, out_dir:, target_col:, drop_features:, weight_mode:, decay_half_life_days:, min_sample_weight:)
+  def initialize(from_date:, to_date:, train_days:, valid_days:, step_days:, lake_dir:, db_path:, feature_set_version:, out_dir:, target_col:, drop_features:, weight_mode:, decay_half_life_days:, min_sample_weight:)
     @from_date = Date.iso8601(from_date)
     @to_date = Date.iso8601(to_date)
     @train_days = train_days.to_i
     @valid_days = valid_days.to_i
     @step_days = step_days.to_i
-    @in_dir = in_dir
+    @lake_dir = lake_dir
+    @db_path = db_path
+    @feature_set_version = feature_set_version
     @out_dir = out_dir
     @target_col = target_col
     @drop_features = drop_features
@@ -102,13 +104,17 @@ class TimeSeriesCVRunner
   end
 
   def run_split!(split_dir, fold)
+    mart_dir = File.join(split_dir, "mart")
     cmd = [
-      "ruby", "scripts/split_features.rb",
+      "ruby", "scripts/split_features_duckdb.rb",
       "--from-date", fold[:train_from].iso8601,
       "--to-date", fold[:valid_to].iso8601,
       "--train-to", fold[:train_to].iso8601,
-      "--in-dir", @in_dir,
-      "--out-dir", split_dir
+      "--lake-dir", @lake_dir,
+      "--out-dir", split_dir,
+      "--mart-dir", mart_dir,
+      "--feature-set-version", @feature_set_version,
+      "--db-path", @db_path
     ]
     run_cmd!(cmd)
   end
@@ -190,7 +196,9 @@ options = {
   train_days: 180,
   valid_days: 28,
   step_days: 28,
-  in_dir: File.join("data", "features"),
+  lake_dir: File.join("data", "lake"),
+  db_path: File.join("data", "duckdb", "gk_yosoku.duckdb"),
+  feature_set_version: "v1",
   out_dir: File.join("data", "ml_cv"),
   target_col: "top3",
   drop_features: [],
@@ -206,7 +214,9 @@ parser = OptionParser.new do |opts|
   opts.on("--train-days N", Integer, "学習窓の日数 (default: 180)") { |v| options[:train_days] = v }
   opts.on("--valid-days N", Integer, "検証窓の日数 (default: 28)") { |v| options[:valid_days] = v }
   opts.on("--step-days N", Integer, "fold間のステップ日数 (default: 28)") { |v| options[:step_days] = v }
-  opts.on("--in-dir DIR", "features CSV入力先 (default: data/features)") { |v| options[:in_dir] = v }
+  opts.on("--lake-dir DIR", "features Parquet入力ルート (default: data/lake)") { |v| options[:lake_dir] = v }
+  opts.on("--db-path PATH", "DuckDB DBファイル (default: data/duckdb/gk_yosoku.duckdb)") { |v| options[:db_path] = v }
+  opts.on("--feature-set-version NAME", "feature set version (default: v1)") { |v| options[:feature_set_version] = v }
   opts.on("--out-dir DIR", "出力先 (default: data/ml_cv)") { |v| options[:out_dir] = v }
   opts.on("--target-col NAME", "top3 or top1 (default: top3)") { |v| options[:target_col] = v }
   opts.on("--drop-features LIST", "除外特徴量のCSVリスト") { |v| options[:drop_features] = v.split(",").map(&:strip).reject(&:empty?) }
@@ -227,7 +237,9 @@ TimeSeriesCVRunner.new(
   train_days: options[:train_days],
   valid_days: options[:valid_days],
   step_days: options[:step_days],
-  in_dir: options[:in_dir],
+  lake_dir: options[:lake_dir],
+  db_path: options[:db_path],
+  feature_set_version: options[:feature_set_version],
   out_dir: options[:out_dir],
   target_col: options[:target_col],
   drop_features: options[:drop_features],

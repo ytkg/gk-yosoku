@@ -69,15 +69,23 @@ RSpec.describe "train/eval/tune/run_timeseries_cv" do
     Dir.mktmpdir("spec-cv-") do |tmp|
       bin_dir = File.join(tmp, "bin")
       create_fake_lightgbm(bin_dir)
+      create_fake_duckdb(bin_dir)
       env = { "PATH" => "#{bin_dir}:#{ENV.fetch('PATH', '')}" }
 
-      features_dir = File.join(tmp, "features")
+      lake_dir = File.join(tmp, "lake")
+      db_path = File.join(tmp, "duckdb", "gk_yosoku.duckdb")
       out_dir = File.join(tmp, "cv")
       (Date.iso8601("2026-01-01")..Date.iso8601("2026-01-06")).each do |d|
         ymd = d.strftime("%Y%m%d")
-        race_id = "#{d.iso8601}-toride-01"
-        rows = sample_feature_rows(date: d.iso8601, race_id: race_id, racedetail_id: "2320260101010001")
-        write_csv(File.join(features_dir, "features_#{ymd}.csv"), feature_headers, rows)
+        parquet_path = File.join(
+          lake_dir,
+          "features",
+          "feature_set=v1",
+          "race_date=#{d.iso8601}",
+          "features_#{ymd}.parquet"
+        )
+        FileUtils.mkdir_p(File.dirname(parquet_path))
+        File.write(parquet_path, "fake parquet")
       end
 
       _out, err, st = run_cmd(
@@ -87,7 +95,9 @@ RSpec.describe "train/eval/tune/run_timeseries_cv" do
         "--train-days", "2",
         "--valid-days", "2",
         "--step-days", "2",
-        "--in-dir", features_dir,
+        "--lake-dir", lake_dir,
+        "--db-path", db_path,
+        "--feature-set-version", "v1",
         "--out-dir", out_dir,
         "--target-col", "top3",
         env: env
@@ -167,7 +177,7 @@ RSpec.describe "train/eval/tune/run_timeseries_cv" do
         "--train-days", "10",
         "--valid-days", "5",
         "--step-days", "1",
-        "--in-dir", File.join(tmp, "features"),
+        "--lake-dir", File.join(tmp, "lake"),
         "--out-dir", out_dir,
         "--target-col", "top3"
       )

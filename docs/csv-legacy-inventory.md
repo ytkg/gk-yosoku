@@ -22,6 +22,5 @@
 
 ## 次の削減候補
 
-1. `run_timeseries_cv.rb` の `split_features.rb` 呼び出しをDuckDB版へ切替
-2. 評価系スクリプトのParquet直接入力化
-3. CSV生成を最終互換出力に限定する設計へ再編
+1. 評価系スクリプトのParquet直接入力化
+2. CSV生成を最終互換出力に限定する設計へ再編
