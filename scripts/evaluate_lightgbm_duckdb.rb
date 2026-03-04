@@ -29,8 +29,8 @@ class DuckDBLightGBMEvaluator
   def run
     check_duckdb!
     FileUtils.mkdir_p(@out_dir)
-    valid_csv = materialize_valid_csv
-    run_eval!(valid_csv)
+    valid_parquet = materialize_valid_parquet
+    run_eval!(valid_parquet)
   end
 
   private
@@ -41,8 +41,8 @@ class DuckDBLightGBMEvaluator
     )
   end
 
-  def materialize_valid_csv
-    out_csv = File.join(@out_dir, "valid_from_duckdb.csv")
+  def materialize_valid_parquet
+    out_parquet = File.join(@out_dir, "valid_from_duckdb.parquet")
     features_glob = File.join(
       @lake_dir,
       "features",
@@ -54,18 +54,19 @@ class DuckDBLightGBMEvaluator
       features_glob: features_glob,
       from_date: @from_date.iso8601,
       to_date: @to_date.iso8601,
-      out_csv: out_csv
+      out_parquet: out_parquet
     )
     GK::DuckDBRunner.run_sql!(db_path: @db_path, sql: sql)
-    out_csv
+    out_parquet
   end
 
-  def run_eval!(valid_csv)
+  def run_eval!(valid_parquet)
     cmd = [
       RbConfig.ruby,
       "scripts/evaluate_lightgbm.rb",
       "--model", @model_path,
-      "--valid-csv", valid_csv,
+      "--valid-parquet", valid_parquet,
+      "--db-path", @db_path,
       "--encoders", @encoder_path,
       "--out-dir", @out_dir,
       "--target-col", @target_col
@@ -74,13 +75,13 @@ class DuckDBLightGBMEvaluator
     raise "evaluate_lightgbm failed: #{err}\n#{out}" unless status.success?
   end
 
-  def build_sql(features_glob:, from_date:, to_date:, out_csv:)
+  def build_sql(features_glob:, from_date:, to_date:, out_parquet:)
     template = File.read(@sql_template, encoding: "UTF-8")
     {
       "features_glob" => features_glob,
       "from_date" => from_date,
       "to_date" => to_date,
-      "out_csv" => out_csv
+      "out_parquet" => out_parquet
     }.each do |key, value|
       template = template.gsub("{{#{key}}}", value.to_s.gsub("'", "''"))
     end

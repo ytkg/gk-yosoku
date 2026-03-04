@@ -2,17 +2,21 @@
 # frozen_string_literal: true
 
 require "csv"
+require "fileutils"
 require "json"
 require "open3"
 require "optparse"
+require_relative "lib/duckdb_runner"
 require_relative "lib/feature_schema"
 require_relative "lib/lightgbm_utils"
 require_relative "lib/model_manifest"
 
 class LightGBMEvaluator
-  def initialize(model_path:, valid_csv:, encoder_path:, out_dir:, target_col:)
+  def initialize(model_path:, valid_csv:, valid_parquet:, db_path:, encoder_path:, out_dir:, target_col:)
     @model_path = model_path
     @valid_csv = valid_csv
+    @valid_parquet = valid_parquet
+    @db_path = db_path
     @encoder_path = encoder_path
     @out_dir = out_dir
     @target_col = target_col
@@ -22,8 +26,9 @@ class LightGBMEvaluator
 
   def run
     check_lightgbm!
+    FileUtils.mkdir_p(@out_dir)
 
-    rows = CSV.read(@valid_csv, headers: true, encoding: "UTF-8").map(&:to_h)
+    rows = CSV.read(resolved_valid_csv, headers: true, encoding: "UTF-8").map(&:to_h)
     raise "empty valid rows" if rows.empty?
     raise "missing target column: #{@target_col}" unless rows.first.key?(@target_col)
     encoders = JSON.parse(File.read(@encoder_path, encoding: "UTF-8"))
@@ -57,6 +62,23 @@ class LightGBMEvaluator
 
   def check_lightgbm!
     GK::LightGBMUtils.ensure_lightgbm!
+  end
+
+  def resolved_valid_csv
+    return @valid_csv if @valid_parquet.nil? || @valid_parquet.empty?
+
+    GK::DuckDBRunner.ensure_duckdb!(message: "duckdb command not found for --valid-parquet")
+    path = File.join(@out_dir, "valid_from_parquet.csv")
+    sql = <<~SQL
+      COPY (
+        SELECT *
+        FROM read_parquet(#{GK::DuckDBRunner.sql_quote(@valid_parquet)})
+      )
+      TO #{GK::DuckDBRunner.sql_quote(path)}
+      (HEADER, DELIMITER ',');
+    SQL
+    GK::DuckDBRunner.run_sql!(db_path: @db_path, sql: sql)
+    path
   end
 
   def write_eval_tsv(path, rows, encoders)
@@ -201,6 +223,8 @@ end
 options = {
   model_path: File.join("data", "ml", "model.txt"),
   valid_csv: File.join("data", "ml", "valid.csv"),
+  valid_parquet: nil,
+  db_path: File.join("data", "duckdb", "gk_yosoku.duckdb"),
   encoder_path: File.join("data", "ml", "encoders.json"),
   out_dir: File.join("data", "ml"),
   target_col: "top3"
@@ -210,6 +234,8 @@ parser = OptionParser.new do |opts|
   opts.banner = "Usage: ruby scripts/evaluate_lightgbm.rb [options]"
   opts.on("--model PATH", "LightGBM model path") { |v| options[:model_path] = v }
   opts.on("--valid-csv PATH", "validation CSV path") { |v| options[:valid_csv] = v }
+  opts.on("--valid-parquet PATH", "validation Parquet path (optional)") { |v| options[:valid_parquet] = v }
+  opts.on("--db-path PATH", "DuckDB DB ファイルパス (valid-parquet利用時)") { |v| options[:db_path] = v }
   opts.on("--encoders PATH", "encoders.json path") { |v| options[:encoder_path] = v }
   opts.on("--out-dir DIR", "output dir") { |v| options[:out_dir] = v }
   opts.on("--target-col NAME", "target column name (top3 or top1)") { |v| options[:target_col] = v }
@@ -219,6 +245,8 @@ parser.parse!
 LightGBMEvaluator.new(
   model_path: options[:model_path],
   valid_csv: options[:valid_csv],
+  valid_parquet: options[:valid_parquet],
+  db_path: options[:db_path],
   encoder_path: options[:encoder_path],
   out_dir: options[:out_dir],
   target_col: options[:target_col]

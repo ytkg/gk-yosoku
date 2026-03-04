@@ -217,7 +217,7 @@ make restore-duckdb SRC=data/duckdb_backup/gk_yosoku_YYYYMMDDTHHMMSSZ.duckdb
 - `make features-duckdb-sql`: `make features-duckdb FEATURES_DUCKDB_MODE=sql_v1` のエイリアス
 - `make split-duckdb`: `data/lake/features` から `train.csv` / `valid.csv` と mart Parquet を作成
 - `make validate-duckdb`: CSV features と Parquet features の差分検証レポートを作成
-- `make eval-duckdb`: Parquet features から検証CSVを生成して `evaluate_lightgbm.rb` を実行
+- `make eval-duckdb`: Parquet features から検証Parquetを生成し、`evaluate_lightgbm.rb --valid-parquet` で評価
 - `make backup-duckdb`: DuckDB本体のバックアップを作成
 - `make restore-duckdb`: バックアップから DuckDB 本体を復元
 - DBファイル既定値: `data/duckdb/gk_yosoku.duckdb`

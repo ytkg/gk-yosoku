@@ -3,7 +3,7 @@
 require "spec_helper"
 
 RSpec.describe "evaluate_lightgbm_duckdb.rb" do
-  it "Parquet -> valid CSV を経由して評価を実行できる" do
+  it "Parquet -> valid Parquet を経由して評価を実行できる" do
     Dir.mktmpdir("spec-eval-duckdb-") do |tmp|
       bin_dir = File.join(tmp, "bin")
       create_fake_duckdb(bin_dir)
@@ -34,7 +34,8 @@ RSpec.describe "evaluate_lightgbm_duckdb.rb" do
         env: env
       )
       expect(st.success?).to be(true), err
-      expect(File).to exist(File.join(out_dir, "valid_from_duckdb.csv"))
+      expect(File).to exist(File.join(out_dir, "valid_from_duckdb.parquet"))
+      expect(File).to exist(File.join(out_dir, "valid_from_parquet.csv"))
       expect(File).to exist(File.join(out_dir, "eval_summary.json"))
     end
   end

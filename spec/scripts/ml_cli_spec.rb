@@ -65,6 +65,35 @@ RSpec.describe "train/eval/tune/run_timeseries_cv" do
     end
   end
 
+  it "evaluate_lightgbm.rb: valid-parquet指定でも評価できる" do
+    Dir.mktmpdir("spec-eval-parquet-") do |tmp|
+      bin_dir = File.join(tmp, "bin")
+      create_fake_lightgbm(bin_dir)
+      create_fake_duckdb(bin_dir)
+      env = { "PATH" => "#{bin_dir}:#{ENV.fetch('PATH', '')}" }
+
+      out_dir = File.join(tmp, "ml")
+      FileUtils.mkdir_p(out_dir)
+      File.write(File.join(out_dir, "model.txt"), "dummy")
+      File.write(File.join(out_dir, "encoders.json"), "{}")
+      valid_parquet = File.join(tmp, "valid.parquet")
+      File.write(valid_parquet, "fake parquet")
+
+      _out, err, st = run_cmd(
+        "ruby", "scripts/evaluate_lightgbm.rb",
+        "--model", File.join(out_dir, "model.txt"),
+        "--encoders", File.join(out_dir, "encoders.json"),
+        "--valid-parquet", valid_parquet,
+        "--db-path", File.join(tmp, "duckdb", "gk_yosoku.duckdb"),
+        "--out-dir", out_dir,
+        env: env
+      )
+      expect(st.success?).to be(true), err
+      expect(File).to exist(File.join(out_dir, "valid_from_parquet.csv"))
+      expect(File).to exist(File.join(out_dir, "eval_summary.json"))
+    end
+  end
+
   it "run_timeseries_cv.rbで複数foldの時系列CVを実行できる" do
     Dir.mktmpdir("spec-cv-") do |tmp|
       bin_dir = File.join(tmp, "bin")
