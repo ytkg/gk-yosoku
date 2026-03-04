@@ -308,14 +308,14 @@ make eval-duckdb FROM=2026-02-01 TO=2026-02-25
 1着モデルを評価する場合:
 
 ```bash
-make eval-top1
+make eval-top1 FROM=2026-02-01 TO=2026-02-25
 ```
 
 オッズ弱依存モデルを評価する場合:
 
 ```bash
-make eval-weakodds
-make eval-top1-weakodds
+make eval-weakodds FROM=2026-02-01 TO=2026-02-25
+make eval-top1-weakodds FROM=2026-02-01 TO=2026-02-25
 ```
 
 ### 5.1 2連単専用モデル（exacta直接学習）
