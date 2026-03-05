@@ -346,6 +346,10 @@ make train-top3-noplayer
 make train-top1-noplayer
 ```
 
+出力先:
+- `make train-top3-noplayer` -> `data/ml/`
+- `make train-top1-noplayer` -> `data/ml_top1/`
+
 オッズ弱依存モデルを学習する場合（既定では `odds_2shatan_min_first` を除外）:
 
 ```bash
