@@ -155,6 +155,7 @@ help:
 	@echo "  vars(train): TOP3_FEATURE_SET=full|noplayer TOP1_FEATURE_SET=full|noplayer"
 	@echo "  vars(exotic): EXOTIC_TOPS=exacta_top,trifecta_top (example: 20,50)"
 	@echo "  noplayer quick map: train-top3-noplayer train-top1-noplayer tune-top3-noplayer tune-top1-noplayer cv-top3-noplayer cv-top1-noplayer"
+	@echo "  note(issue-cycle): includes final open-issue check"
 
 issue-cycle:
 	@echo "Issue運用サイクル:"
