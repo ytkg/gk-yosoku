@@ -682,27 +682,38 @@ make full FROM=2025-01-01 TO=2026-02-25 TRAIN_TO=2026-01-31 SLEEP=0.2
 
 ## Make変数
 
+実行期間・環境:
 - `IMAGE`（既定: `gk-yosoku`）
 - `FROM`（既定: `2026-01-01`）
 - `TO`（既定: `2026-02-25`）
 - `TRAIN_TO`（既定: `2026-01-31`）
 - `SLEEP`（既定: `0.2`）
 - `CACHE`（既定: `--cache`、必要時のみ `CACHE=--no-cache` を指定）
-- `EXOTIC_OPTS`（既定: 空、`make exotic` の追加オプション。例: `--win-csv data/ml_top1/valid_pred.csv`）
-- `TUNE_OPTS`（既定: 空、`make tune` の追加オプション）
-- `CV_OPTS`（既定: 空、`make cv` の追加オプション）
+
+DuckDB/Parquet 共通:
 - `PARQUET_DB`（既定: `data/duckdb/gk_yosoku.duckdb`）
 - `FEATURE_SET_VERSION`（既定: `v1`）
 - `DUCKDB_DB_OPTS`（既定: `--db-path $(PARQUET_DB)`）
 - `DUCKDB_FEATURE_OPTS`（既定: `--lake-dir $(LAKE_DIR) --feature-set-version $(FEATURE_SET_VERSION) $(DUCKDB_DB_OPTS)`）
 - `EVAL_DUCKDB_BASE_OPTS`（既定: `$(DUCKDB_FEATURE_OPTS)`）
 - `CV_DUCKDB_OPTS`（既定: `$(DUCKDB_FEATURE_OPTS)`）
+
+split/train/tune 関連:
 - `PROFILE_SPLIT_ID`（既定: `FROM_TO_TRAIN_TO` から自動生成）
 - `PROFILE_MART_DIR`（既定: `data/marts/train_valid/split_id=$(PROFILE_SPLIT_ID)`）
 - `TRAIN_DUCKDB_OPTS`（既定: `--train-parquet $(PROFILE_MART_DIR)/train.parquet --valid-parquet $(PROFILE_MART_DIR)/valid.parquet $(DUCKDB_DB_OPTS)`）
 - `TUNE_TRAIN_PARQUET`（既定: `$(PROFILE_MART_DIR)/train.parquet`）
 - `TUNE_VALID_PARQUET`（既定: `$(PROFILE_MART_DIR)/valid.parquet`）
 - `TUNE_DUCKDB_OPTS`（既定: `--train-parquet $(TUNE_TRAIN_PARQUET) --valid-parquet $(TUNE_VALID_PARQUET) $(DUCKDB_DB_OPTS)`）
+- `TUNE_OPTS`（既定: 空、`make tune` の追加オプション）
+- `CV_OPTS`（既定: 空、`make cv` の追加オプション）
+- `TOP3_TRAIN_OPTS` / `TOP1_TRAIN_OPTS`（各学習ターゲット固有の追加オプション）
+- `TOP3_EVAL_OPTS` / `TOP1_EVAL_OPTS`（各評価ターゲット固有の追加オプション）
+- `EXACTA_TRAIN_OPTS` / `EXACTA_EVAL_OPTS`（exacta専用モデルの追加オプション）
+- `TOP3_FEATURE_SET` / `TOP1_FEATURE_SET`（既定: `full`、`noplayer` 指定時は `player_name` を除外）
+
+予測・API・exotic 関連:
+- `EXOTIC_OPTS`（既定: 空、`make exotic` の追加オプション。例: `--win-csv data/ml_top1/valid_pred.csv`）
 - `HIT5_PROFILE`（既定: `data/ml/exotic_profile_hit5.json`、`make learn-hit5-profile` / `make predict-hit5` で使用）
 - `HIT5_LEARN_OPTS`（既定: 空、`make learn-hit5-profile` の追加オプション）
 - `EXACTA_PROFILE`（既定: `data/ml/exotic_profile_exacta_hit1.json`、`make learn-exacta-profile` / `make eval-exacta-profile` で使用）
@@ -711,10 +722,11 @@ make full FROM=2025-01-01 TO=2026-02-25 TRAIN_TO=2026-01-31 SLEEP=0.2
 - `HIT5_TOP1_MODEL` / `HIT5_TOP1_ENCODERS`（既定: `trial_002`、hit@5学習時のtop1モデル）
 - `RACE_URL`（既定: 空、`make predict` で必須）
 - `PREDICT_OPTS`（既定: 空、`make predict` の追加オプション）
+
+重み付け関連:
 - `WEIGHT_MODE`（既定: `none`、`none` or `time_decay`）
 - `DECAY_HALF_LIFE_DAYS`（既定: `120`、`time_decay` の半減期）
 - `MIN_SAMPLE_WEIGHT`（既定: `0.2`、`time_decay` の最小重み）
-- `TOP3_FEATURE_SET` / `TOP1_FEATURE_SET`（既定: `full`、`noplayer` 指定時は `player_name` を除外）
 
 | 変数 | 既定 | 推奨 | 意味 |
 | --- | --- | --- | --- |
@@ -726,9 +738,6 @@ make full FROM=2025-01-01 TO=2026-02-25 TRAIN_TO=2026-01-31 SLEEP=0.2
 - `top3`: `data/ml/eval_summary.json`（full）が `data/ml_noplayer/tuning_v2/trial_024/eval_summary.json` より高指標
 - `top1`: `data/ml_top1/tuning_v2/trial_029/eval_summary.json` と `data/ml_top1_noplayer/tuning_v2/trial_025/eval_summary.json` は `winner_hit_rate` 同率、`auc` は full が優位
 - 採用方針: `TOP3_FEATURE_SET=full` / `TOP1_FEATURE_SET=full`
-- `TOP3_TRAIN_OPTS` / `TOP1_TRAIN_OPTS`（各学習ターゲット固有の追加オプション）
-- `TOP3_EVAL_OPTS` / `TOP1_EVAL_OPTS`（各評価ターゲット固有の追加オプション）
-- `EXACTA_TRAIN_OPTS` / `EXACTA_EVAL_OPTS`（exacta専用モデルの追加オプション）
 
 例:
 
