@@ -255,6 +255,7 @@ RSpec.describe "generate/evaluate/learn exotics" do
 
       profile = JSON.parse(File.read(profile_path, encoding: "UTF-8"))
       expect(profile.dig("config", "path")).to eq(config_path)
+      expect(profile.dig("config", "cli_overrides")).to include("objective_n")
       expect(profile["optimized_for"]).to eq("hit@5")
       expect(profile.dig("search_space", "searched_combinations")).to eq(1)
     end

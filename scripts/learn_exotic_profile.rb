@@ -9,7 +9,7 @@ require "yaml"
 require_relative "lib/exotic_scoring"
 
 class ExoticProfileLearner
-  def initialize(train_top3_csv:, train_top1_csv:, train_actual_csv:, valid_top3_csv:, valid_top1_csv:, valid_actual_csv:, out_path:, objective_n:, exacta_weight:, trifecta_weight:, temp_grid:, exp_grid:, exacta_second_win_exp_grid:, max_trials:, random_seed:, config_path:)
+  def initialize(train_top3_csv:, train_top1_csv:, train_actual_csv:, valid_top3_csv:, valid_top1_csv:, valid_actual_csv:, out_path:, objective_n:, exacta_weight:, trifecta_weight:, temp_grid:, exp_grid:, exacta_second_win_exp_grid:, max_trials:, random_seed:, config_path:, cli_overrides:)
     @train_top3_csv = train_top3_csv
     @train_top1_csv = train_top1_csv
     @train_actual_csv = train_actual_csv
@@ -26,6 +26,7 @@ class ExoticProfileLearner
     @max_trials = max_trials.to_i
     @random_seed = random_seed.to_i
     @config_path = config_path
+    @cli_overrides = cli_overrides
   end
 
   def run
@@ -88,7 +89,7 @@ class ExoticProfileLearner
         "exacta_weight" => @exacta_weight,
         "trifecta_weight" => @trifecta_weight
       },
-      "config" => @config_path.nil? ? nil : { "path" => @config_path },
+      "config" => @config_path.nil? ? nil : { "path" => @config_path, "cli_overrides" => @cli_overrides },
       "best" => best,
       "train_eval" => train_eval,
       "valid_eval" => valid_eval,
@@ -319,7 +320,8 @@ options = {
   exacta_second_win_exp_grid: [0.0],
   max_trials: 0,
   random_seed: 42,
-  config_path: nil
+  config_path: nil,
+  cli_overrides: []
 }
 
 parser = OptionParser.new do |opts|
@@ -341,6 +343,8 @@ parser = OptionParser.new do |opts|
   opts.on("--max-trials N", Integer, "randomly sample at most N parameter combinations (0 means exhaustive)") { |v| options[:max_trials] = v }
   opts.on("--random-seed N", Integer, "random seed for --max-trials sampling (default: 42)") { |v| options[:random_seed] = v }
 end
+
+raw_args = ARGV.dup
 
 pre_config_path = nil
 ARGV.each_with_index do |arg, idx|
@@ -366,6 +370,26 @@ if pre_config_path
 end
 
 parser.parse!
+
+cli_override_keys = []
+i = 0
+while i < raw_args.size
+  token = raw_args[i]
+  if token.start_with?("--")
+    if token.include?("=")
+      key = token.split("=", 2)[0]
+      cli_override_keys << key
+    else
+      cli_override_keys << token
+      i += 1 if (i + 1) < raw_args.size && !raw_args[i + 1].start_with?("--")
+    end
+  end
+  i += 1
+end
+options[:cli_overrides] = cli_override_keys
+  .map { |k| k.sub(/\A--/, "").tr("-", "_") }
+  .reject { |k| k == "config" }
+  .uniq
 
 options[:temp_grid] = options[:temp_grid].split(",").map(&:to_f).select { |x| x.positive? } if options[:temp_grid].is_a?(String)
 options[:exp_grid] = options[:exp_grid].split(",").map(&:to_f).select { |x| x.positive? } if options[:exp_grid].is_a?(String)
@@ -430,5 +454,6 @@ ExoticProfileLearner.new(
   exacta_second_win_exp_grid: options[:exacta_second_win_exp_grid],
   max_trials: options[:max_trials],
   random_seed: options[:random_seed],
-  config_path: options[:config_path]
+  config_path: options[:config_path],
+  cli_overrides: options[:cli_overrides]
 ).run
