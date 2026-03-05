@@ -251,6 +251,12 @@ make cv-top1 FROM=2025-01-01 TO=2026-02-25 \
 - 相性特徴量（`pair_*`, `triplet_*`）
 - exacta専用モデル追加と `predict-exacta` 導線整備
 
+### time-decay 半減期の比較結果（2026-03-05）
+
+- 比較対象: `data/ml_cv_hl60`, `data/ml_cv_hl90`, `data/ml_cv_hl120`, `data/ml_cv_hl180`
+- `winner_hit_rate` 平均: `hl120=0.6786`, `hl90=0.6773`, `hl60=0.6740`, `hl180=0.6728`
+- 決定: 既定値は `DECAY_HALF_LIFE_DAYS=120` を維持
+
 ## 既知の方針
 
 - 古すぎるデータは性能を落とす可能性があるため、まずは直近12か月中心で比較
