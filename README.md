@@ -716,6 +716,11 @@ make full FROM=2025-01-01 TO=2026-02-25 TRAIN_TO=2026-01-31 SLEEP=0.2
 - `MIN_SAMPLE_WEIGHT`（既定: `0.2`、`time_decay` の最小重み）
 - `TOP3_FEATURE_SET` / `TOP1_FEATURE_SET`（既定: `full`、`noplayer` 指定時は `player_name` を除外）
 
+| 変数 | 既定 | 推奨 | 意味 |
+| --- | --- | --- | --- |
+| `TOP3_FEATURE_SET` | `full` | `full` | `noplayer` 指定時は `player_name` を除外 |
+| `TOP1_FEATURE_SET` | `full` | `full` | `noplayer` 指定時は `player_name` を除外 |
+
 半減期の直近比較（`data/ml_cv_hl60|90|120|180/cv_summary.json`, 2026-03-05 集計）では、`winner_hit_rate` は `120` が最高でした（`hl120=0.6786`, `hl90=0.6773`, `hl60=0.6740`, `hl180=0.6728`）。
 特徴量セット分岐の直近比較（2026-03-05集計）:
 - `top3`: `data/ml/eval_summary.json`（full）が `data/ml_noplayer/tuning_v2/trial_024/eval_summary.json` より高指標
