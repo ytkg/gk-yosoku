@@ -203,6 +203,7 @@ make cv-top1 FROM=2025-01-01 TO=2026-02-25 \
 補足:
 1. 標準運用の一次データは Parquet（lake/marts）を使う
 2. CSVは学習器互換と一部下流処理のために生成する
+3. `make features` / `make split` / `make eval` は互換用途の deprecated wrapper として残置する
 
 ## 検証方針
 

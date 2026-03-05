@@ -256,6 +256,8 @@ make restore-duckdb SRC=data/duckdb_backup/gk_yosoku_YYYYMMDDTHHMMSSZ.duckdb
 - `make backup-duckdb`: DuckDB本体のバックアップを作成
 - `make restore-duckdb`: バックアップから DuckDB 本体を復元
 - DBファイル既定値: `data/duckdb/gk_yosoku.duckdb`
+- `make features` / `make split` / `make eval` は互換用途の deprecated wrapper（標準運用では使わない）
+- CSV（`train.csv` / `valid.csv` など）は学習器互換のために生成される中間成果物
 
 補足:
 - 履歴率系（`hist_*`、`pair_*`、`triplet_*`）には低サンプル時の過学習を抑える縮約（smoothing）を入れています。
