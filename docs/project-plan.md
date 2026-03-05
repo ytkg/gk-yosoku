@@ -120,6 +120,8 @@ make full FROM=2025-01-01 TO=2026-02-25 TRAIN_TO=2026-01-31 SLEEP=0.2
   既定: `--train-parquet $(TUNE_TRAIN_PARQUET) --valid-parquet $(TUNE_VALID_PARQUET) $(DUCKDB_DB_OPTS)`
 - `TOP3_FEATURE_SET` / `TOP1_FEATURE_SET`  
   既定: `full`（`noplayer` 指定時は `player_name` を除外）
+- `EXOTIC_TOPS`  
+  既定: `20,50`（`optimize-exotic-hitk` の `exacta_top,trifecta_top` 指定）
 
 上書き例:
 
