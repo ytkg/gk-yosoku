@@ -138,6 +138,7 @@ help:
 	@echo "  make cv-top3-noplayer FROM=YYYY-MM-DD TO=YYYY-MM-DD CV_OPTS='--from-date ... --to-date ... --train-days 180 --valid-days 28 --step-days 28'"
 	@echo "  make cv-top1-noplayer FROM=YYYY-MM-DD TO=YYYY-MM-DD CV_OPTS='--from-date ... --to-date ... --train-days 180 --valid-days 28 --step-days 28'"
 	@echo "  make cv-half-life-grid FROM=YYYY-MM-DD TO=YYYY-MM-DD HALF_LIFE_GRID='60,90,120,180'"
+	@echo "    -> out: data/ml_cv_half_life/half_life_leaderboard.csv, half_life_summary.json"
 	@echo "  make importance"
 	@echo "  make predict   RACE_URL='https://keirin.kdreams.jp/.../racedetail/xxxxxxxxxxxxxxxx/' PREDICT_OPTS='--exacta-top 20 --trifecta-top 50'"
 	@echo "  make predict-exacta RACE_URL='https://keirin.kdreams.jp/.../racedetail/xxxxxxxxxxxxxxxx/'"
