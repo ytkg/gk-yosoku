@@ -87,6 +87,18 @@ class HalfLifeComparer
     summary = {
       "target_col" => @target_col,
       "candidates" => rows.size,
+      "options" => {
+        "from_date" => @from_date,
+        "to_date" => @to_date,
+        "train_days" => @train_days,
+        "valid_days" => @valid_days,
+        "step_days" => @step_days,
+        "half_lives" => @half_lives,
+        "min_sample_weight" => @min_sample_weight,
+        "lake_dir" => @lake_dir,
+        "db_path" => @db_path,
+        "feature_set_version" => @feature_set_version
+      },
       "best" => best,
       "rows" => rows
     }

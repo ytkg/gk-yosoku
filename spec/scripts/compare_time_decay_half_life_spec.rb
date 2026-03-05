@@ -49,6 +49,7 @@ RSpec.describe "compare_time_decay_half_life" do
       expect(leaderboard[0]["half_life_days"]).to eq("120.0")
       expect(summary.dig("best", "half_life_days")).to eq(120.0)
       expect(summary["candidates"]).to eq(2)
+      expect(summary.dig("options", "half_lives")).to eq([60.0, 120.0])
     end
   end
 end
