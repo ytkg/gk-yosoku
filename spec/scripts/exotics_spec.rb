@@ -260,6 +260,65 @@ RSpec.describe "generate/evaluate/learn exotics" do
     end
   end
 
+  it "learn_exotic_profile.rb: 不正なconfig値は明示エラーになる" do
+    Dir.mktmpdir("spec-exotic-profile-config-invalid-") do |tmp|
+      train_top3_csv = File.join(tmp, "train_top3.csv")
+      train_top1_csv = File.join(tmp, "train_top1.csv")
+      valid_top3_csv = File.join(tmp, "valid_top3.csv")
+      valid_top1_csv = File.join(tmp, "valid_top1.csv")
+      train_actual_csv = File.join(tmp, "train_actual.csv")
+      valid_actual_csv = File.join(tmp, "valid_actual.csv")
+      profile_path = File.join(tmp, "exotic_profile.json")
+      config_path = File.join(tmp, "profile_config.yml")
+
+      headers = %w[race_id race_date venue race_number car_number player_name rank top1 top3 score]
+      rows = [
+        { "race_id" => "r1", "race_date" => "2026-02-20", "venue" => "toride", "race_number" => "1", "car_number" => "1", "player_name" => "A", "rank" => "1", "top1" => "1", "top3" => "1", "score" => "0.90" },
+        { "race_id" => "r1", "race_date" => "2026-02-20", "venue" => "toride", "race_number" => "1", "car_number" => "2", "player_name" => "B", "rank" => "2", "top1" => "0", "top3" => "1", "score" => "0.80" },
+        { "race_id" => "r1", "race_date" => "2026-02-20", "venue" => "toride", "race_number" => "1", "car_number" => "3", "player_name" => "C", "rank" => "3", "top1" => "0", "top3" => "1", "score" => "0.70" }
+      ]
+      rows_top1 = [
+        rows[0].merge("score" => "0.95"),
+        rows[1].merge("score" => "0.28"),
+        rows[2].merge("score" => "0.10")
+      ]
+      write_csv(train_top3_csv, headers, rows)
+      write_csv(train_top1_csv, headers, rows_top1)
+      write_csv(valid_top3_csv, headers, rows)
+      write_csv(valid_top1_csv, headers, rows_top1)
+      write_csv(train_actual_csv, headers, rows)
+      write_csv(valid_actual_csv, headers, rows)
+
+      File.write(
+        config_path,
+        <<~YAML
+          objective_n: 5
+          exacta_weight: 0.0
+          trifecta_weight: 0.0
+          temp_grid: [0.1]
+          exp_grid: [0.8]
+          exacta_second_win_exp_grid: [0.0]
+          max_trials: 1
+          random_seed: 7
+        YAML
+      )
+
+      _out, err, st = run_cmd(
+        "ruby", "scripts/learn_exotic_profile.rb",
+        "--config", config_path,
+        "--train-top3-csv", train_top3_csv,
+        "--train-top1-csv", train_top1_csv,
+        "--train-actual-csv", train_actual_csv,
+        "--valid-top3-csv", valid_top3_csv,
+        "--valid-top1-csv", valid_top1_csv,
+        "--valid-actual-csv", valid_actual_csv,
+        "--out", profile_path
+      )
+      expect(st.success?).to be(false)
+      expect(err).to include("exacta_weight and trifecta_weight cannot both be 0")
+    end
+  end
+
   it "evaluate_exotics.rb: nsが空ならエラーになる" do
     Dir.mktmpdir("spec-exotic-ns-empty-") do |tmp|
       actual_csv = File.join(tmp, "actual.csv")

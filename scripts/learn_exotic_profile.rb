@@ -373,11 +373,46 @@ if options[:exacta_second_win_exp_grid].is_a?(String)
   options[:exacta_second_win_exp_grid] = options[:exacta_second_win_exp_grid].split(",").map(&:to_f).select { |x| x >= 0.0 }
 end
 
-raise "temp-grid is empty" if options[:temp_grid].empty?
-raise "exp-grid is empty" if options[:exp_grid].empty?
-raise "exacta-second-win-exp-grid is empty" if options[:exacta_second_win_exp_grid].empty?
-raise "objective-n must be >= 1" if options[:objective_n].to_i < 1
-raise "max-trials must be >= 0" if options[:max_trials].to_i < 0
+begin
+  options[:objective_n] = Integer(options[:objective_n])
+rescue StandardError
+  raise "objective_n must be integer"
+end
+begin
+  options[:max_trials] = Integer(options[:max_trials])
+rescue StandardError
+  raise "max_trials must be integer"
+end
+begin
+  options[:random_seed] = Integer(options[:random_seed])
+rescue StandardError
+  raise "random_seed must be integer"
+end
+begin
+  options[:exacta_weight] = Float(options[:exacta_weight])
+  options[:trifecta_weight] = Float(options[:trifecta_weight])
+rescue StandardError
+  raise "exacta_weight and trifecta_weight must be float"
+end
+
+raise "temp-grid is empty" if !options[:temp_grid].is_a?(Array) || options[:temp_grid].empty?
+raise "exp-grid is empty" if !options[:exp_grid].is_a?(Array) || options[:exp_grid].empty?
+if !options[:exacta_second_win_exp_grid].is_a?(Array) || options[:exacta_second_win_exp_grid].empty?
+  raise "exacta-second-win-exp-grid is empty"
+end
+raise "temp-grid must contain only positive numbers" unless options[:temp_grid].all? { |x| x.to_f.positive? }
+raise "exp-grid must contain only positive numbers" unless options[:exp_grid].all? { |x| x.to_f.positive? }
+unless options[:exacta_second_win_exp_grid].all? { |x| x.to_f >= 0.0 }
+  raise "exacta-second-win-exp-grid must contain only non-negative numbers"
+end
+raise "objective_n must be >= 1" if options[:objective_n] < 1
+raise "max_trials must be >= 0" if options[:max_trials] < 0
+if options[:exacta_weight].negative? || options[:trifecta_weight].negative?
+  raise "exacta_weight and trifecta_weight must be >= 0"
+end
+if options[:exacta_weight].zero? && options[:trifecta_weight].zero?
+  raise "exacta_weight and trifecta_weight cannot both be 0"
+end
 
 ExoticProfileLearner.new(
   train_top3_csv: options[:train_top3_csv],
