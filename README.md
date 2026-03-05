@@ -617,9 +617,12 @@ make full FROM=2025-01-01 TO=2026-02-25 TRAIN_TO=2026-01-31 SLEEP=0.2
 - `TUNE_OPTS`（既定: 空、`make tune` の追加オプション）
 - `CV_OPTS`（既定: 空、`make cv` の追加オプション）
 - `PARQUET_DB`（既定: `data/duckdb/gk_yosoku.duckdb`）
+- `EVAL_DUCKDB_BASE_OPTS`（既定: `--lake-dir data/lake --feature-set-version v1 --db-path data/duckdb/gk_yosoku.duckdb`）
+- `CV_DUCKDB_OPTS`（既定: `--lake-dir data/lake --db-path data/duckdb/gk_yosoku.duckdb --feature-set-version v1`）
 - `PROFILE_SPLIT_ID`（既定: `FROM_TO_TRAIN_TO` から自動生成）
 - `PROFILE_MART_DIR`（既定: `data/marts/train_valid/split_id=$(PROFILE_SPLIT_ID)`）
 - `TUNE_VALID_PARQUET`（既定: `$(PROFILE_MART_DIR)/valid.parquet`）
+- `TUNE_DUCKDB_OPTS`（既定: `--valid-parquet $(TUNE_VALID_PARQUET) --db-path $(PARQUET_DB)`）
 - `HIT5_PROFILE`（既定: `data/ml/exotic_profile_hit5.json`、`make learn-hit5-profile` / `make predict-hit5` で使用）
 - `HIT5_LEARN_OPTS`（既定: 空、`make learn-hit5-profile` の追加オプション）
 - `EXACTA_PROFILE`（既定: `data/ml/exotic_profile_exacta_hit1.json`、`make learn-exacta-profile` / `make eval-exacta-profile` で使用）
@@ -639,6 +642,13 @@ make full FROM=2025-01-01 TO=2026-02-25 TRAIN_TO=2026-01-31 SLEEP=0.2
 
 ```bash
 make collect FROM=2026-01-01 TO=2026-02-25 SLEEP=0.1
+```
+
+DuckDB共通オプションを上書きする例:
+
+```bash
+make cv CV_DUCKDB_OPTS="--lake-dir data/lake --db-path data/duckdb/gk_yosoku.duckdb --feature-set-version v1" \
+  CV_OPTS="--from-date 2026-01-01 --to-date 2026-02-25 --train-days 120 --valid-days 28 --step-days 28"
 ```
 
 キャッシュを無効化したい場合:
