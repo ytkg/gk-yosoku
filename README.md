@@ -69,6 +69,7 @@ make eval-duckdb FROM=2026-02-01 TO=2026-02-25
 ```bash
 make api-start
 make api-predict PAYLOAD=docs/api/request-examples/predict-basic.json
+make api-stop
 ```
 
 3. 学習済みモデルでCLI予測だけ試すルート
