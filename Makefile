@@ -72,7 +72,7 @@ include .env
 export
 endif
 
-.PHONY: help issue-cycle build api-start api-start-bg api-stop api-logs api-health api-predict api-predict-timeout-check api-smoke api-cli-parity manifest-inspect collect parquet-bootstrap features features-duckdb features-duckdb-sql split split-duckdb validate-duckdb eval-duckdb backup-duckdb restore-duckdb features-exacta train train-top3-noplayer eval train-top1 train-top1-noplayer eval-top1 train-exacta eval-exacta-model train-dual eval-dual train-weakodds eval-weakodds train-top1-weakodds eval-top1-weakodds exotic eval-exotic exotic-weakodds eval-exotic-weakodds learn-hit5-profile learn-exacta-profile eval-exacta-profile optimize-exotic-hitk tune tune-top1 tune-top1-noplayer tune-top3 tune-top3-noplayer tune-weakodds tune-top1-weakodds cv cv-top1 cv-half-life-grid importance predict predict-exacta predict-balanced predict-trifecta predict-hit5 predict-hit5-profile predict-tri5 predict-weakodds test test-duckdb pipeline full
+.PHONY: help issue-cycle build api-start api-start-bg api-stop api-logs api-health api-predict api-predict-timeout-check api-smoke api-cli-parity manifest-inspect collect parquet-bootstrap features features-duckdb features-duckdb-sql split split-duckdb validate-duckdb eval-duckdb backup-duckdb restore-duckdb features-exacta train train-top3-noplayer eval train-top1 train-top1-noplayer eval-top1 train-exacta eval-exacta-model train-dual eval-dual train-weakodds eval-weakodds train-top1-weakodds eval-top1-weakodds exotic eval-exotic exotic-weakodds eval-exotic-weakodds learn-hit5-profile learn-exacta-profile eval-exacta-profile optimize-exotic-hitk tune tune-top1 tune-top1-noplayer tune-top3 tune-top3-noplayer tune-weakodds tune-top1-weakodds cv cv-top1 cv-top3-noplayer cv-top1-noplayer cv-half-life-grid importance predict predict-exacta predict-balanced predict-trifecta predict-hit5 predict-hit5-profile predict-tri5 predict-weakodds test test-duckdb pipeline full
 
 help:
 	@echo "Targets:"
@@ -130,6 +130,8 @@ help:
 	@echo "  make tune-top1-weakodds FROM=YYYY-MM-DD TO=YYYY-MM-DD TRAIN_TO=YYYY-MM-DD WEAK_DROP='odds_2shatan_min_first'"
 	@echo "  make cv FROM=YYYY-MM-DD TO=YYYY-MM-DD CV_OPTS='--from-date ... --to-date ... --train-days 180 --valid-days 28 --step-days 28'"
 	@echo "  make cv-top1 FROM=YYYY-MM-DD TO=YYYY-MM-DD CV_OPTS='--from-date ... --to-date ... --train-days 180 --valid-days 28 --step-days 28'"
+	@echo "  make cv-top3-noplayer FROM=YYYY-MM-DD TO=YYYY-MM-DD CV_OPTS='--from-date ... --to-date ... --train-days 180 --valid-days 28 --step-days 28'"
+	@echo "  make cv-top1-noplayer FROM=YYYY-MM-DD TO=YYYY-MM-DD CV_OPTS='--from-date ... --to-date ... --train-days 180 --valid-days 28 --step-days 28'"
 	@echo "  make cv-half-life-grid FROM=YYYY-MM-DD TO=YYYY-MM-DD HALF_LIFE_GRID='60,90,120,180'"
 	@echo "  make importance"
 	@echo "  make predict   RACE_URL='https://keirin.kdreams.jp/.../racedetail/xxxxxxxxxxxxxxxx/' PREDICT_OPTS='--exacta-top 20 --trifecta-top 50'"
@@ -417,6 +419,12 @@ cv:
 
 cv-top1:
 	$(DOCKER_RUN) ruby scripts/run_timeseries_cv.rb --target-col top1 --out-dir data/ml_cv_top1 --weight-mode $(WEIGHT_MODE) --decay-half-life-days $(DECAY_HALF_LIFE_DAYS) --min-sample-weight $(MIN_SAMPLE_WEIGHT) $(TOP1_FEATURE_OPTS) $(CV_DUCKDB_OPTS) $(CV_OPTS)
+
+cv-top3-noplayer:
+	$(MAKE) cv TOP3_FEATURE_SET=noplayer CV_OPTS="$(CV_OPTS)"
+
+cv-top1-noplayer:
+	$(MAKE) cv-top1 TOP1_FEATURE_SET=noplayer CV_OPTS="$(CV_OPTS)"
 
 cv-half-life-grid:
 	$(DOCKER_RUN) ruby scripts/compare_time_decay_half_life.rb --from-date $(FROM) --to-date $(TO) --half-lives $(HALF_LIFE_GRID) --target-col top3 --out-dir $(HALF_LIFE_CV_OUT_DIR) --min-sample-weight $(MIN_SAMPLE_WEIGHT) $(CV_DUCKDB_OPTS) $(HALF_LIFE_OPTS)
