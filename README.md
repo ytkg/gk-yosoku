@@ -51,8 +51,8 @@ make issue-cycle
 
 `make issue-cycle` は、親Issue `#32` 運用に沿った日次手順（起票→実装→検証→クローズ）を確認するための簡易ガイドです。
 
-最短DuckDB学習ルート:
-前提: `data/raw/*.csv` があること（未取得なら先に `make collect` を実行）。
+1. 最短DuckDB学習ルート  
+前提: `data/raw/*.csv` があること（未取得なら先に `make collect`）。
 
 ```bash
 make parquet-bootstrap FROM=2025-01-01 TO=2026-02-25
@@ -62,14 +62,14 @@ make train
 make eval-duckdb FROM=2026-02-01 TO=2026-02-25
 ```
 
-詳細は「主要コマンド（Makefile前提）」を参照してください。
-
-最短予測ルート:
+2. 最短予測ルート
 
 ```bash
 make api-start
 make api-predict PAYLOAD=docs/api/request-examples/predict-basic.json
 ```
+
+詳細は「主要コマンド（Makefile前提）」を参照してください。
 
 ## CIチェック（PR時）
 
