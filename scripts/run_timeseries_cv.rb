@@ -185,6 +185,7 @@ class TimeSeriesCVRunner
     summary = {
       "folds" => rows.size,
       "target_col" => @target_col,
+      "feature_set_version" => @feature_set_version,
       "input_modes" => {
         "train" => rows.group_by { |r| r["train_input_mode"] }.transform_values(&:size),
         "eval" => rows.group_by { |r| r["eval_input_mode"] }.transform_values(&:size)
