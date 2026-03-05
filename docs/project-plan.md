@@ -135,6 +135,8 @@ make full FROM=2025-01-01 TO=2026-02-25 TRAIN_TO=2026-01-31 SLEEP=0.2
 ```bash
 make cv CV_DUCKDB_OPTS="--lake-dir data/lake --db-path data/duckdb/gk_yosoku.duckdb --feature-set-version v1" \
   CV_OPTS="--from-date 2026-01-01 --to-date 2026-02-25 --train-days 120 --valid-days 28 --step-days 28"
+make optimize-exotic-hitk EXOTIC_TOPS="10,30" \
+  EXOTIC_OPT_LEARN_OPTS="--config docs/exotic_profile_config.sample.yml"
 ```
 
 ## チューニング（DuckDB前提）
