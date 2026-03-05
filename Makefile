@@ -72,7 +72,7 @@ include .env
 export
 endif
 
-.PHONY: help issue-cycle build api-start api-start-bg api-stop api-logs api-health api-predict api-predict-timeout-check api-smoke api-cli-parity manifest-inspect collect parquet-bootstrap features features-duckdb features-duckdb-sql split split-duckdb validate-duckdb eval-duckdb backup-duckdb restore-duckdb features-exacta train eval train-top1 eval-top1 train-exacta eval-exacta-model train-dual eval-dual train-weakodds eval-weakodds train-top1-weakodds eval-top1-weakodds exotic eval-exotic exotic-weakodds eval-exotic-weakodds learn-hit5-profile learn-exacta-profile eval-exacta-profile optimize-exotic-hitk tune tune-top1 tune-top1-noplayer tune-top3 tune-top3-noplayer tune-weakodds tune-top1-weakodds cv cv-top1 cv-half-life-grid importance predict predict-exacta predict-balanced predict-trifecta predict-hit5 predict-hit5-profile predict-tri5 predict-weakodds test test-duckdb pipeline full
+.PHONY: help issue-cycle build api-start api-start-bg api-stop api-logs api-health api-predict api-predict-timeout-check api-smoke api-cli-parity manifest-inspect collect parquet-bootstrap features features-duckdb features-duckdb-sql split split-duckdb validate-duckdb eval-duckdb backup-duckdb restore-duckdb features-exacta train train-top3-noplayer eval train-top1 train-top1-noplayer eval-top1 train-exacta eval-exacta-model train-dual eval-dual train-weakodds eval-weakodds train-top1-weakodds eval-top1-weakodds exotic eval-exotic exotic-weakodds eval-exotic-weakodds learn-hit5-profile learn-exacta-profile eval-exacta-profile optimize-exotic-hitk tune tune-top1 tune-top1-noplayer tune-top3 tune-top3-noplayer tune-weakodds tune-top1-weakodds cv cv-top1 cv-half-life-grid importance predict predict-exacta predict-balanced predict-trifecta predict-hit5 predict-hit5-profile predict-tri5 predict-weakodds test test-duckdb pipeline full
 
 help:
 	@echo "Targets:"
@@ -100,8 +100,10 @@ help:
 	@echo "  make restore-duckdb SRC=path/to/gk_yosoku_YYYYMMDDTHHMMSSZ.duckdb"
 	@echo "  make features-exacta"
 	@echo "  make train"
+	@echo "  make train-top3-noplayer"
 	@echo "  make eval (deprecated wrapper)"
 	@echo "  make train-top1"
+	@echo "  make train-top1-noplayer"
 	@echo "  make eval-top1"
 	@echo "  make train-exacta"
 	@echo "  make eval-exacta-model"
@@ -315,12 +317,18 @@ features-exacta:
 train:
 	$(DOCKER_RUN) ruby scripts/train_lightgbm.rb --target-col top3 --weight-mode $(WEIGHT_MODE) --decay-half-life-days $(DECAY_HALF_LIFE_DAYS) --min-sample-weight $(MIN_SAMPLE_WEIGHT) $(TOP3_FEATURE_OPTS) $(TRAIN_DUCKDB_OPTS) $(TOP3_TRAIN_OPTS)
 
+train-top3-noplayer:
+	$(MAKE) train TOP3_FEATURE_SET=noplayer TOP3_TRAIN_OPTS="$(TOP3_TRAIN_OPTS)"
+
 eval:
 	@echo "[deprecated] make eval now delegates to eval-duckdb"
 	$(MAKE) eval-duckdb FROM=$(FROM) TO=$(TO) LAKE_DIR=$(LAKE_DIR) PARQUET_DB=$(PARQUET_DB) EVAL_DUCKDB_OPTS="$(TOP3_EVAL_OPTS)" EVAL_MODEL=data/ml/model.txt EVAL_ENCODERS=data/ml/encoders.json EVAL_OUT_DIR=data/ml EVAL_TARGET_COL=top3
 
 train-top1:
 	$(DOCKER_RUN) ruby scripts/train_lightgbm.rb --target-col top1 --out-dir data/ml_top1 --weight-mode $(WEIGHT_MODE) --decay-half-life-days $(DECAY_HALF_LIFE_DAYS) --min-sample-weight $(MIN_SAMPLE_WEIGHT) $(TOP1_FEATURE_OPTS) $(TRAIN_DUCKDB_OPTS) $(TOP1_TRAIN_OPTS)
+
+train-top1-noplayer:
+	$(MAKE) train-top1 TOP1_FEATURE_SET=noplayer TOP1_TRAIN_OPTS="$(TOP1_TRAIN_OPTS)"
 
 eval-top1:
 	$(MAKE) eval-duckdb FROM=$(FROM) TO=$(TO) LAKE_DIR=$(LAKE_DIR) PARQUET_DB=$(PARQUET_DB) EVAL_MODEL=data/ml_top1/model.txt EVAL_ENCODERS=data/ml_top1/encoders.json EVAL_OUT_DIR=data/ml_top1 EVAL_TARGET_COL=top1 EVAL_DUCKDB_OPTS="$(TOP1_EVAL_OPTS)"
