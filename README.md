@@ -51,6 +51,18 @@ make issue-cycle
 
 `make issue-cycle` は、親Issue `#32` 運用に沿った日次手順（起票→実装→検証→クローズ）を確認するための簡易ガイドです。
 
+最短DuckDB学習ルート:
+
+```bash
+make parquet-bootstrap FROM=2025-01-01 TO=2026-02-25
+make features-duckdb FROM=2025-01-01 TO=2026-02-25
+make split-duckdb FROM=2025-01-01 TO=2026-02-25 TRAIN_TO=2026-01-31
+make train
+make eval-duckdb FROM=2026-02-01 TO=2026-02-25
+```
+
+詳細は「主要コマンド（Makefile前提）」を参照してください。
+
 ## CIチェック（PR時）
 
 PRでは次の2つを必須チェックとして扱います。
