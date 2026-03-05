@@ -66,6 +66,22 @@ make eval-exacta-model
 make full FROM=2025-01-01 TO=2026-02-25 TRAIN_TO=2026-01-31 SLEEP=0.2
 ```
 
+## DuckDB共通オプション変数（Make）
+
+- `EVAL_DUCKDB_BASE_OPTS`  
+  既定: `--lake-dir data/lake --feature-set-version v1 --db-path data/duckdb/gk_yosoku.duckdb`
+- `CV_DUCKDB_OPTS`  
+  既定: `--lake-dir data/lake --db-path data/duckdb/gk_yosoku.duckdb --feature-set-version v1`
+- `TUNE_DUCKDB_OPTS`  
+  既定: `--valid-parquet $(TUNE_VALID_PARQUET) --db-path $(PARQUET_DB)`
+
+上書き例:
+
+```bash
+make cv CV_DUCKDB_OPTS="--lake-dir data/lake --db-path data/duckdb/gk_yosoku.duckdb --feature-set-version v1" \
+  CV_OPTS="--from-date 2026-01-01 --to-date 2026-02-25 --train-days 120 --valid-days 28 --step-days 28"
+```
+
 ## チューニング（DuckDB前提）
 
 前提:
