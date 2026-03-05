@@ -29,6 +29,7 @@ EVAL_ENCODERS ?= data/ml/encoders.json
 EVAL_OUT_DIR ?= data/ml
 EVAL_TARGET_COL ?= top3
 EVAL_FEATURE_SET_VERSION ?= v1
+EVAL_DUCKDB_BASE_OPTS ?= --lake-dir $(LAKE_DIR) --feature-set-version $(EVAL_FEATURE_SET_VERSION) --db-path $(PARQUET_DB)
 DUCKDB_BACKUP_DIR ?= data/duckdb_backup
 HIT5_PROFILE ?= data/ml/exotic_profile_hit5.json
 HIT5_LEARN_OPTS ?=
@@ -41,6 +42,8 @@ HIT5_TOP1_ENCODERS ?= data/ml_top1/tuning_v2/trial_002/encoders.json
 PROFILE_SPLIT_ID ?= $(subst -,,$(FROM))_$(subst -,,$(TO))_train_to_$(subst -,,$(TRAIN_TO))
 PROFILE_MART_DIR ?= data/marts/train_valid/split_id=$(PROFILE_SPLIT_ID)
 TUNE_VALID_PARQUET ?= $(PROFILE_MART_DIR)/valid.parquet
+TUNE_DUCKDB_OPTS ?= --valid-parquet $(TUNE_VALID_PARQUET) --db-path $(PARQUET_DB)
+CV_DUCKDB_OPTS ?= --lake-dir $(LAKE_DIR) --db-path $(PARQUET_DB) --feature-set-version v1
 
 DOCKER_RUN = docker run --rm -v "$$PWD:/app" -w /app $(IMAGE)
 DOCKER_RUN_API = docker run --rm -p 4567:4567 -v "$$PWD:/app" -w /app $(IMAGE)
@@ -256,9 +259,7 @@ eval-duckdb:
 		--encoders $(EVAL_ENCODERS) \
 		--out-dir $(EVAL_OUT_DIR) \
 		--target-col $(EVAL_TARGET_COL) \
-		--lake-dir $(LAKE_DIR) \
-		--feature-set-version $(EVAL_FEATURE_SET_VERSION) \
-		--db-path $(PARQUET_DB) \
+		$(EVAL_DUCKDB_BASE_OPTS) \
 		$(EVAL_DUCKDB_OPTS)
 
 backup-duckdb:
@@ -347,28 +348,28 @@ eval-exacta-profile:
 	$(DOCKER_RUN) ruby scripts/evaluate_exotics.rb --out data/ml/exotic_eval_summary_exacta_profile.json
 
 tune:
-	$(DOCKER_RUN) ruby scripts/tune_lightgbm.rb --weight-mode $(WEIGHT_MODE) --decay-half-life-days $(DECAY_HALF_LIFE_DAYS) --min-sample-weight $(MIN_SAMPLE_WEIGHT) --valid-parquet $(TUNE_VALID_PARQUET) --db-path $(PARQUET_DB) $(TUNE_OPTS)
+	$(DOCKER_RUN) ruby scripts/tune_lightgbm.rb --weight-mode $(WEIGHT_MODE) --decay-half-life-days $(DECAY_HALF_LIFE_DAYS) --min-sample-weight $(MIN_SAMPLE_WEIGHT) $(TUNE_DUCKDB_OPTS) $(TUNE_OPTS)
 
 tune-top3:
-	$(DOCKER_RUN) ruby scripts/tune_lightgbm.rb --target-col top3 --out-dir data/ml/tuning_top3 --sort-metric top3_exact_match_rate --weight-mode $(WEIGHT_MODE) --decay-half-life-days $(DECAY_HALF_LIFE_DAYS) --min-sample-weight $(MIN_SAMPLE_WEIGHT) --valid-parquet $(TUNE_VALID_PARQUET) --db-path $(PARQUET_DB) $(TUNE_OPTS)
+	$(DOCKER_RUN) ruby scripts/tune_lightgbm.rb --target-col top3 --out-dir data/ml/tuning_top3 --sort-metric top3_exact_match_rate --weight-mode $(WEIGHT_MODE) --decay-half-life-days $(DECAY_HALF_LIFE_DAYS) --min-sample-weight $(MIN_SAMPLE_WEIGHT) $(TUNE_DUCKDB_OPTS) $(TUNE_OPTS)
 
 tune-top1:
-	$(DOCKER_RUN) ruby scripts/tune_lightgbm.rb --target-col top1 --out-dir data/ml_top1/tuning --sort-metric winner_hit_rate --weight-mode $(WEIGHT_MODE) --decay-half-life-days $(DECAY_HALF_LIFE_DAYS) --min-sample-weight $(MIN_SAMPLE_WEIGHT) --valid-parquet $(TUNE_VALID_PARQUET) --db-path $(PARQUET_DB) $(TUNE_OPTS)
+	$(DOCKER_RUN) ruby scripts/tune_lightgbm.rb --target-col top1 --out-dir data/ml_top1/tuning --sort-metric winner_hit_rate --weight-mode $(WEIGHT_MODE) --decay-half-life-days $(DECAY_HALF_LIFE_DAYS) --min-sample-weight $(MIN_SAMPLE_WEIGHT) $(TUNE_DUCKDB_OPTS) $(TUNE_OPTS)
 
 tune-top3-noplayer:
-	$(DOCKER_RUN) ruby scripts/tune_lightgbm.rb --target-col top3 --drop-features player_name --out-dir data/ml_noplayer/tuning --sort-metric top3_exact_match_rate --weight-mode $(WEIGHT_MODE) --decay-half-life-days $(DECAY_HALF_LIFE_DAYS) --min-sample-weight $(MIN_SAMPLE_WEIGHT) --valid-parquet $(TUNE_VALID_PARQUET) --db-path $(PARQUET_DB) $(TUNE_OPTS)
+	$(DOCKER_RUN) ruby scripts/tune_lightgbm.rb --target-col top3 --drop-features player_name --out-dir data/ml_noplayer/tuning --sort-metric top3_exact_match_rate --weight-mode $(WEIGHT_MODE) --decay-half-life-days $(DECAY_HALF_LIFE_DAYS) --min-sample-weight $(MIN_SAMPLE_WEIGHT) $(TUNE_DUCKDB_OPTS) $(TUNE_OPTS)
 
 tune-weakodds:
-	$(DOCKER_RUN) ruby scripts/tune_lightgbm.rb --target-col top3 --drop-features $(WEAK_DROP) --out-dir data/ml_weakodds/tuning --sort-metric top3_exact_match_rate --weight-mode $(WEIGHT_MODE) --decay-half-life-days $(DECAY_HALF_LIFE_DAYS) --min-sample-weight $(MIN_SAMPLE_WEIGHT) --valid-parquet $(TUNE_VALID_PARQUET) --db-path $(PARQUET_DB) $(TUNE_OPTS)
+	$(DOCKER_RUN) ruby scripts/tune_lightgbm.rb --target-col top3 --drop-features $(WEAK_DROP) --out-dir data/ml_weakodds/tuning --sort-metric top3_exact_match_rate --weight-mode $(WEIGHT_MODE) --decay-half-life-days $(DECAY_HALF_LIFE_DAYS) --min-sample-weight $(MIN_SAMPLE_WEIGHT) $(TUNE_DUCKDB_OPTS) $(TUNE_OPTS)
 
 tune-top1-weakodds:
-	$(DOCKER_RUN) ruby scripts/tune_lightgbm.rb --target-col top1 --drop-features $(WEAK_DROP) --out-dir data/ml_top1_weakodds/tuning --sort-metric winner_hit_rate --weight-mode $(WEIGHT_MODE) --decay-half-life-days $(DECAY_HALF_LIFE_DAYS) --min-sample-weight $(MIN_SAMPLE_WEIGHT) --valid-parquet $(TUNE_VALID_PARQUET) --db-path $(PARQUET_DB) $(TUNE_OPTS)
+	$(DOCKER_RUN) ruby scripts/tune_lightgbm.rb --target-col top1 --drop-features $(WEAK_DROP) --out-dir data/ml_top1_weakodds/tuning --sort-metric winner_hit_rate --weight-mode $(WEIGHT_MODE) --decay-half-life-days $(DECAY_HALF_LIFE_DAYS) --min-sample-weight $(MIN_SAMPLE_WEIGHT) $(TUNE_DUCKDB_OPTS) $(TUNE_OPTS)
 
 cv:
-	$(DOCKER_RUN) ruby scripts/run_timeseries_cv.rb --target-col top3 --weight-mode $(WEIGHT_MODE) --decay-half-life-days $(DECAY_HALF_LIFE_DAYS) --min-sample-weight $(MIN_SAMPLE_WEIGHT) $(CV_OPTS)
+	$(DOCKER_RUN) ruby scripts/run_timeseries_cv.rb --target-col top3 --weight-mode $(WEIGHT_MODE) --decay-half-life-days $(DECAY_HALF_LIFE_DAYS) --min-sample-weight $(MIN_SAMPLE_WEIGHT) $(CV_DUCKDB_OPTS) $(CV_OPTS)
 
 cv-top1:
-	$(DOCKER_RUN) ruby scripts/run_timeseries_cv.rb --target-col top1 --out-dir data/ml_cv_top1 --weight-mode $(WEIGHT_MODE) --decay-half-life-days $(DECAY_HALF_LIFE_DAYS) --min-sample-weight $(MIN_SAMPLE_WEIGHT) $(CV_OPTS)
+	$(DOCKER_RUN) ruby scripts/run_timeseries_cv.rb --target-col top1 --out-dir data/ml_cv_top1 --weight-mode $(WEIGHT_MODE) --decay-half-life-days $(DECAY_HALF_LIFE_DAYS) --min-sample-weight $(MIN_SAMPLE_WEIGHT) $(CV_DUCKDB_OPTS) $(CV_OPTS)
 
 importance:
 	$(DOCKER_RUN) ruby scripts/show_feature_importance.rb
