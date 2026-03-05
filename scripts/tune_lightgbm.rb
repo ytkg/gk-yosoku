@@ -10,9 +10,11 @@ require "optparse"
 class LightGBMTuner
   SORTABLE_METRICS = %w[auc winner_hit_rate top3_exact_match_rate top3_recall_at3].freeze
 
-  def initialize(train_csv:, valid_csv:, out_dir:, num_iterations:, early_stopping_round:, learning_rates:, num_leaves_list:, min_data_in_leaf_list:, target_col:, drop_features:, sort_metric:, weight_mode:, decay_half_life_days:, min_sample_weight:)
+  def initialize(train_csv:, valid_csv:, valid_parquet:, db_path:, out_dir:, num_iterations:, early_stopping_round:, learning_rates:, num_leaves_list:, min_data_in_leaf_list:, target_col:, drop_features:, sort_metric:, weight_mode:, decay_half_life_days:, min_sample_weight:)
     @train_csv = train_csv
     @valid_csv = valid_csv
+    @valid_parquet = valid_parquet
+    @db_path = db_path
     @out_dir = out_dir
     @num_iterations = num_iterations
     @early_stopping_round = early_stopping_round
@@ -101,11 +103,15 @@ class LightGBMTuner
     cmd = [
       "ruby", "scripts/evaluate_lightgbm.rb",
       "--model", File.join(trial_dir, "model.txt"),
-      "--valid-csv", @valid_csv,
       "--encoders", File.join(trial_dir, "encoders.json"),
       "--out-dir", trial_dir,
       "--target-col", @target_col
     ]
+    if @valid_parquet.nil? || @valid_parquet.empty?
+      cmd += ["--valid-csv", @valid_csv]
+    else
+      cmd += ["--valid-parquet", @valid_parquet, "--db-path", @db_path]
+    end
     run_cmd!(cmd)
 
     summary_path = File.join(trial_dir, "eval_summary.json")
@@ -144,6 +150,8 @@ end
 options = {
   train_csv: File.join("data", "ml", "train.csv"),
   valid_csv: File.join("data", "ml", "valid.csv"),
+  valid_parquet: nil,
+  db_path: File.join("data", "duckdb", "gk_yosoku.duckdb"),
   out_dir: File.join("data", "ml", "tuning"),
   num_iterations: 400,
   early_stopping_round: 30,
@@ -162,6 +170,8 @@ parser = OptionParser.new do |opts|
   opts.banner = "Usage: ruby scripts/tune_lightgbm.rb [options]"
   opts.on("--train-csv PATH", "train.csv path") { |v| options[:train_csv] = v }
   opts.on("--valid-csv PATH", "valid.csv path") { |v| options[:valid_csv] = v }
+  opts.on("--valid-parquet PATH", "valid parquet path (optional)") { |v| options[:valid_parquet] = v }
+  opts.on("--db-path PATH", "DuckDB DBファイル (valid-parquet利用時)") { |v| options[:db_path] = v }
   opts.on("--out-dir DIR", "tuning output dir") { |v| options[:out_dir] = v }
   opts.on("--num-iterations N", Integer, "boosting rounds for each trial") { |v| options[:num_iterations] = v }
   opts.on("--early-stopping-round N", Integer, "early stopping rounds") { |v| options[:early_stopping_round] = v }
@@ -184,6 +194,8 @@ end
 LightGBMTuner.new(
   train_csv: options[:train_csv],
   valid_csv: options[:valid_csv],
+  valid_parquet: options[:valid_parquet],
+  db_path: options[:db_path],
   out_dir: options[:out_dir],
   num_iterations: options[:num_iterations],
   early_stopping_round: options[:early_stopping_round],

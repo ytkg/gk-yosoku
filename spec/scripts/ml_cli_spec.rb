@@ -65,6 +65,43 @@ RSpec.describe "train/eval/tune/run_timeseries_cv" do
     end
   end
 
+  it "tune_lightgbm.rb: valid-parquet指定でも実行できる" do
+    Dir.mktmpdir("spec-tune-parquet-") do |tmp|
+      bin_dir = File.join(tmp, "bin")
+      create_fake_lightgbm(bin_dir)
+      create_fake_duckdb(bin_dir)
+      env = { "PATH" => "#{bin_dir}:#{ENV.fetch('PATH', '')}" }
+
+      train_csv = File.join(tmp, "train.csv")
+      valid_csv = File.join(tmp, "valid.csv")
+      train_rows = sample_feature_rows(date: "2026-02-25", race_id: "2026-02-25-toride-01")
+      valid_rows = sample_feature_rows(date: "2026-02-26", race_id: "2026-02-26-toride-01")
+      write_csv(train_csv, feature_headers, train_rows)
+      write_csv(valid_csv, feature_headers, valid_rows)
+
+      valid_parquet = File.join(tmp, "valid.parquet")
+      File.write(valid_parquet, "fake parquet")
+      out_dir = File.join(tmp, "tuning")
+      _out, err, st = run_cmd(
+        "ruby", "scripts/tune_lightgbm.rb",
+        "--train-csv", train_csv,
+        "--valid-csv", valid_csv,
+        "--valid-parquet", valid_parquet,
+        "--db-path", File.join(tmp, "duckdb", "gk_yosoku.duckdb"),
+        "--out-dir", out_dir,
+        "--num-iterations", "5",
+        "--learning-rates", "0.03",
+        "--num-leaves", "31",
+        "--min-data-in-leaf", "20",
+        env: env
+      )
+      expect(st.success?).to be(true), err
+      lb = CSV.read(File.join(out_dir, "tune_leaderboard.csv"), headers: true)
+      expect(lb.size).to eq(1)
+      expect(File).to exist(File.join(out_dir, "best_params.json"))
+    end
+  end
+
   it "evaluate_lightgbm.rb: valid-parquet指定でも評価できる" do
     Dir.mktmpdir("spec-eval-parquet-") do |tmp|
       bin_dir = File.join(tmp, "bin")

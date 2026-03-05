@@ -40,6 +40,7 @@ HIT5_TOP1_MODEL ?= data/ml_top1/tuning_v2/trial_002/model.txt
 HIT5_TOP1_ENCODERS ?= data/ml_top1/tuning_v2/trial_002/encoders.json
 PROFILE_SPLIT_ID ?= $(subst -,,$(FROM))_$(subst -,,$(TO))_train_to_$(subst -,,$(TRAIN_TO))
 PROFILE_MART_DIR ?= data/marts/train_valid/split_id=$(PROFILE_SPLIT_ID)
+TUNE_VALID_PARQUET ?= $(PROFILE_MART_DIR)/valid.parquet
 
 DOCKER_RUN = docker run --rm -v "$$PWD:/app" -w /app $(IMAGE)
 DOCKER_RUN_API = docker run --rm -p 4567:4567 -v "$$PWD:/app" -w /app $(IMAGE)
@@ -346,22 +347,22 @@ eval-exacta-profile:
 	$(DOCKER_RUN) ruby scripts/evaluate_exotics.rb --out data/ml/exotic_eval_summary_exacta_profile.json
 
 tune:
-	$(DOCKER_RUN) ruby scripts/tune_lightgbm.rb --weight-mode $(WEIGHT_MODE) --decay-half-life-days $(DECAY_HALF_LIFE_DAYS) --min-sample-weight $(MIN_SAMPLE_WEIGHT) $(TUNE_OPTS)
+	$(DOCKER_RUN) ruby scripts/tune_lightgbm.rb --weight-mode $(WEIGHT_MODE) --decay-half-life-days $(DECAY_HALF_LIFE_DAYS) --min-sample-weight $(MIN_SAMPLE_WEIGHT) --valid-parquet $(TUNE_VALID_PARQUET) --db-path $(PARQUET_DB) $(TUNE_OPTS)
 
 tune-top3:
-	$(DOCKER_RUN) ruby scripts/tune_lightgbm.rb --target-col top3 --out-dir data/ml/tuning_top3 --sort-metric top3_exact_match_rate --weight-mode $(WEIGHT_MODE) --decay-half-life-days $(DECAY_HALF_LIFE_DAYS) --min-sample-weight $(MIN_SAMPLE_WEIGHT) $(TUNE_OPTS)
+	$(DOCKER_RUN) ruby scripts/tune_lightgbm.rb --target-col top3 --out-dir data/ml/tuning_top3 --sort-metric top3_exact_match_rate --weight-mode $(WEIGHT_MODE) --decay-half-life-days $(DECAY_HALF_LIFE_DAYS) --min-sample-weight $(MIN_SAMPLE_WEIGHT) --valid-parquet $(TUNE_VALID_PARQUET) --db-path $(PARQUET_DB) $(TUNE_OPTS)
 
 tune-top1:
-	$(DOCKER_RUN) ruby scripts/tune_lightgbm.rb --target-col top1 --out-dir data/ml_top1/tuning --sort-metric winner_hit_rate --weight-mode $(WEIGHT_MODE) --decay-half-life-days $(DECAY_HALF_LIFE_DAYS) --min-sample-weight $(MIN_SAMPLE_WEIGHT) $(TUNE_OPTS)
+	$(DOCKER_RUN) ruby scripts/tune_lightgbm.rb --target-col top1 --out-dir data/ml_top1/tuning --sort-metric winner_hit_rate --weight-mode $(WEIGHT_MODE) --decay-half-life-days $(DECAY_HALF_LIFE_DAYS) --min-sample-weight $(MIN_SAMPLE_WEIGHT) --valid-parquet $(TUNE_VALID_PARQUET) --db-path $(PARQUET_DB) $(TUNE_OPTS)
 
 tune-top3-noplayer:
-	$(DOCKER_RUN) ruby scripts/tune_lightgbm.rb --target-col top3 --drop-features player_name --out-dir data/ml_noplayer/tuning --sort-metric top3_exact_match_rate --weight-mode $(WEIGHT_MODE) --decay-half-life-days $(DECAY_HALF_LIFE_DAYS) --min-sample-weight $(MIN_SAMPLE_WEIGHT) $(TUNE_OPTS)
+	$(DOCKER_RUN) ruby scripts/tune_lightgbm.rb --target-col top3 --drop-features player_name --out-dir data/ml_noplayer/tuning --sort-metric top3_exact_match_rate --weight-mode $(WEIGHT_MODE) --decay-half-life-days $(DECAY_HALF_LIFE_DAYS) --min-sample-weight $(MIN_SAMPLE_WEIGHT) --valid-parquet $(TUNE_VALID_PARQUET) --db-path $(PARQUET_DB) $(TUNE_OPTS)
 
 tune-weakodds:
-	$(DOCKER_RUN) ruby scripts/tune_lightgbm.rb --target-col top3 --drop-features $(WEAK_DROP) --out-dir data/ml_weakodds/tuning --sort-metric top3_exact_match_rate --weight-mode $(WEIGHT_MODE) --decay-half-life-days $(DECAY_HALF_LIFE_DAYS) --min-sample-weight $(MIN_SAMPLE_WEIGHT) $(TUNE_OPTS)
+	$(DOCKER_RUN) ruby scripts/tune_lightgbm.rb --target-col top3 --drop-features $(WEAK_DROP) --out-dir data/ml_weakodds/tuning --sort-metric top3_exact_match_rate --weight-mode $(WEIGHT_MODE) --decay-half-life-days $(DECAY_HALF_LIFE_DAYS) --min-sample-weight $(MIN_SAMPLE_WEIGHT) --valid-parquet $(TUNE_VALID_PARQUET) --db-path $(PARQUET_DB) $(TUNE_OPTS)
 
 tune-top1-weakodds:
-	$(DOCKER_RUN) ruby scripts/tune_lightgbm.rb --target-col top1 --drop-features $(WEAK_DROP) --out-dir data/ml_top1_weakodds/tuning --sort-metric winner_hit_rate --weight-mode $(WEIGHT_MODE) --decay-half-life-days $(DECAY_HALF_LIFE_DAYS) --min-sample-weight $(MIN_SAMPLE_WEIGHT) $(TUNE_OPTS)
+	$(DOCKER_RUN) ruby scripts/tune_lightgbm.rb --target-col top1 --drop-features $(WEAK_DROP) --out-dir data/ml_top1_weakodds/tuning --sort-metric winner_hit_rate --weight-mode $(WEIGHT_MODE) --decay-half-life-days $(DECAY_HALF_LIFE_DAYS) --min-sample-weight $(MIN_SAMPLE_WEIGHT) --valid-parquet $(TUNE_VALID_PARQUET) --db-path $(PARQUET_DB) $(TUNE_OPTS)
 
 cv:
 	$(DOCKER_RUN) ruby scripts/run_timeseries_cv.rb --target-col top3 --weight-mode $(WEIGHT_MODE) --decay-half-life-days $(DECAY_HALF_LIFE_DAYS) --min-sample-weight $(MIN_SAMPLE_WEIGHT) $(CV_OPTS)
