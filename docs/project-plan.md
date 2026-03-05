@@ -66,6 +66,38 @@ make eval-exacta-model
 make full FROM=2025-01-01 TO=2026-02-25 TRAIN_TO=2026-01-31 SLEEP=0.2
 ```
 
+## チューニング（DuckDB前提）
+
+前提:
+1. `make split-duckdb FROM=... TO=... TRAIN_TO=...` を先に実行
+2. `data/marts/train_valid/split_id=.../valid.parquet` が存在する
+
+実行例:
+
+```bash
+make tune FROM=2025-01-01 TO=2026-02-25 TRAIN_TO=2026-01-31 \
+  TUNE_OPTS="--num-iterations 500 --learning-rates 0.03,0.05"
+```
+
+補足:
+- 既定で `TUNE_VALID_PARQUET=$(PROFILE_MART_DIR)/valid.parquet` を使用
+- 既定値を変える場合は `TUNE_VALID_PARQUET=...` を明示する
+
+## 時系列CV（DuckDB前提）
+
+実行例:
+
+```bash
+make cv FROM=2025-01-01 TO=2026-02-25 \
+  CV_OPTS="--from-date 2025-01-01 --to-date 2026-02-25 --train-days 180 --valid-days 28 --step-days 28 --lake-dir data/lake --db-path data/duckdb/gk_yosoku.duckdb --feature-set-version v1"
+make cv-top1 FROM=2025-01-01 TO=2026-02-25 \
+  CV_OPTS="--from-date 2025-01-01 --to-date 2026-02-25 --train-days 180 --valid-days 28 --step-days 28 --lake-dir data/lake --db-path data/duckdb/gk_yosoku.duckdb --feature-set-version v1"
+```
+
+確認ポイント:
+1. `data/ml_cv*/cv_results.csv` の fold 数と期間
+2. `data/ml_cv*/cv_summary.json` の主要指標（auc / winner_hit_rate / top3系）
+
 ## データ仕様（現行）
 
 ### 取得出力
