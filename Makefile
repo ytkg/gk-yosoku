@@ -153,6 +153,7 @@ help:
 	@echo "  make pipeline  FROM=YYYY-MM-DD TO=YYYY-MM-DD TRAIN_TO=YYYY-MM-DD"
 	@echo "  make full      FROM=YYYY-MM-DD TO=YYYY-MM-DD TRAIN_TO=YYYY-MM-DD SLEEP=0.2 CACHE=--cache"
 	@echo "  vars: TOP3_FEATURE_SET=full|noplayer TOP1_FEATURE_SET=full|noplayer"
+	@echo "  vars: EXOTIC_TOPS=exacta_top,trifecta_top (example: 20,50)"
 	@echo "  noplayer quick map: train-top3-noplayer train-top1-noplayer tune-top3-noplayer tune-top1-noplayer cv-top3-noplayer cv-top1-noplayer"
 
 issue-cycle:
