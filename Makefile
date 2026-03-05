@@ -165,6 +165,7 @@ issue-cycle:
 	@echo "  5) 子Issueをクローズ"
 	@echo "  6) 改善Issueを1件以上起票"
 	@echo "  7) 親Issue #32 を更新"
+	@echo "  8) open issue を確認（gh issue list --state open）"
 
 build:
 	docker build -t $(IMAGE) .
