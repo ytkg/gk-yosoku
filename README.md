@@ -409,15 +409,22 @@ make tune-top1 WEIGHT_MODE=time_decay DECAY_HALF_LIFE_DAYS=120 MIN_SAMPLE_WEIGHT
 ### 7.1 時系列CV（再現性確認）
 
 複数foldで時系列CVを回して、単発split依存を下げます。
+CVは `data/lake/features/feature_set=v1/...` を入力にします。
 
 ```bash
-make cv CV_OPTS="--from-date 2025-01-01 --to-date 2026-02-25 --train-days 180 --valid-days 28 --step-days 28"
-make cv-top1 CV_OPTS="--from-date 2025-01-01 --to-date 2026-02-25 --train-days 180 --valid-days 28 --step-days 28"
+make cv FROM=2025-01-01 TO=2026-02-25 \
+  CV_OPTS="--from-date 2025-01-01 --to-date 2026-02-25 --train-days 180 --valid-days 28 --step-days 28 --lake-dir data/lake --db-path data/duckdb/gk_yosoku.duckdb --feature-set-version v1"
+make cv-top1 FROM=2025-01-01 TO=2026-02-25 \
+  CV_OPTS="--from-date 2025-01-01 --to-date 2026-02-25 --train-days 180 --valid-days 28 --step-days 28 --lake-dir data/lake --db-path data/duckdb/gk_yosoku.duckdb --feature-set-version v1"
 ```
 
 出力:
 - `data/ml_cv/cv_results.csv`, `data/ml_cv/cv_summary.json`
 - `data/ml_cv_top1/cv_results.csv`, `data/ml_cv_top1/cv_summary.json`
+
+確認ポイント:
+1. `cv_results.csv` の fold 数と期間が想定どおりか
+2. `cv_summary.json` の `metrics` が単発評価と大きく乖離していないか
 
 ### 8. 重要特徴量の確認
 
