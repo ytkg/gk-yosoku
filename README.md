@@ -455,6 +455,9 @@ make cv FROM=2025-01-01 TO=2026-02-25 \
   CV_OPTS="--from-date 2025-01-01 --to-date 2026-02-25 --train-days 180 --valid-days 28 --step-days 28"
 make cv-top1 FROM=2025-01-01 TO=2026-02-25 \
   CV_OPTS="--from-date 2025-01-01 --to-date 2026-02-25 --train-days 180 --valid-days 28 --step-days 28"
+
+# 半減期候補を一括比較（time_decay固定）
+make cv-half-life-grid FROM=2025-01-01 TO=2026-02-25 HALF_LIFE_GRID="60,90,120,180"
 ```
 
 出力:
@@ -464,6 +467,7 @@ make cv-top1 FROM=2025-01-01 TO=2026-02-25 \
 確認ポイント:
 1. `cv_results.csv` の fold 数と期間が想定どおりか
 2. `cv_summary.json` の `metrics` が単発評価と大きく乖離していないか
+3. 半減期比較時は `data/ml_cv_half_life/half_life_leaderboard.csv` を見て候補を比較する
 
 ### 8. 重要特徴量の確認
 

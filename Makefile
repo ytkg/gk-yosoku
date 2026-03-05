@@ -21,6 +21,7 @@ TOP1_EVAL_OPTS ?=
 EXACTA_TRAIN_OPTS ?=
 EXACTA_EVAL_OPTS ?=
 CV_OPTS ?=
+HALF_LIFE_OPTS ?=
 LAKE_DIR ?= data/lake
 PARQUET_DB ?= data/duckdb/gk_yosoku.duckdb
 FEATURE_SET_VERSION ?= v1
@@ -51,6 +52,8 @@ TUNE_TRAIN_PARQUET ?= $(PROFILE_MART_DIR)/train.parquet
 TUNE_VALID_PARQUET ?= $(PROFILE_MART_DIR)/valid.parquet
 TUNE_DUCKDB_OPTS ?= --train-parquet $(TUNE_TRAIN_PARQUET) --valid-parquet $(TUNE_VALID_PARQUET) $(DUCKDB_DB_OPTS)
 CV_DUCKDB_OPTS ?= $(DUCKDB_FEATURE_OPTS)
+HALF_LIFE_GRID ?= 60,90,120,180
+HALF_LIFE_CV_OUT_DIR ?= data/ml_cv_half_life
 
 DOCKER_RUN = docker run --rm -v "$$PWD:/app" -w /app $(IMAGE)
 DOCKER_RUN_API = docker run --rm -p 4567:4567 -v "$$PWD:/app" -w /app $(IMAGE)
@@ -65,7 +68,7 @@ include .env
 export
 endif
 
-.PHONY: help issue-cycle build api-start api-start-bg api-stop api-logs api-health api-predict api-predict-timeout-check api-smoke api-cli-parity manifest-inspect collect parquet-bootstrap features features-duckdb features-duckdb-sql split split-duckdb validate-duckdb eval-duckdb backup-duckdb restore-duckdb features-exacta train eval train-top1 eval-top1 train-exacta eval-exacta-model train-dual eval-dual train-weakodds eval-weakodds train-top1-weakodds eval-top1-weakodds exotic eval-exotic exotic-weakodds eval-exotic-weakodds learn-hit5-profile learn-exacta-profile eval-exacta-profile optimize-exotic-hitk tune tune-top1 tune-top3 tune-top3-noplayer tune-weakodds tune-top1-weakodds cv cv-top1 importance predict predict-exacta predict-balanced predict-trifecta predict-hit5 predict-hit5-profile predict-tri5 predict-weakodds test test-duckdb pipeline full
+.PHONY: help issue-cycle build api-start api-start-bg api-stop api-logs api-health api-predict api-predict-timeout-check api-smoke api-cli-parity manifest-inspect collect parquet-bootstrap features features-duckdb features-duckdb-sql split split-duckdb validate-duckdb eval-duckdb backup-duckdb restore-duckdb features-exacta train eval train-top1 eval-top1 train-exacta eval-exacta-model train-dual eval-dual train-weakodds eval-weakodds train-top1-weakodds eval-top1-weakodds exotic eval-exotic exotic-weakodds eval-exotic-weakodds learn-hit5-profile learn-exacta-profile eval-exacta-profile optimize-exotic-hitk tune tune-top1 tune-top3 tune-top3-noplayer tune-weakodds tune-top1-weakodds cv cv-top1 cv-half-life-grid importance predict predict-exacta predict-balanced predict-trifecta predict-hit5 predict-hit5-profile predict-tri5 predict-weakodds test test-duckdb pipeline full
 
 help:
 	@echo "Targets:"
@@ -120,6 +123,7 @@ help:
 	@echo "  make tune-top1-weakodds FROM=YYYY-MM-DD TO=YYYY-MM-DD TRAIN_TO=YYYY-MM-DD WEAK_DROP='odds_2shatan_min_first'"
 	@echo "  make cv FROM=YYYY-MM-DD TO=YYYY-MM-DD CV_OPTS='--from-date ... --to-date ... --train-days 180 --valid-days 28 --step-days 28'"
 	@echo "  make cv-top1 FROM=YYYY-MM-DD TO=YYYY-MM-DD CV_OPTS='--from-date ... --to-date ... --train-days 180 --valid-days 28 --step-days 28'"
+	@echo "  make cv-half-life-grid FROM=YYYY-MM-DD TO=YYYY-MM-DD HALF_LIFE_GRID='60,90,120,180'"
 	@echo "  make importance"
 	@echo "  make predict   RACE_URL='https://keirin.kdreams.jp/.../racedetail/xxxxxxxxxxxxxxxx/' PREDICT_OPTS='--exacta-top 20 --trifecta-top 50'"
 	@echo "  make predict-exacta RACE_URL='https://keirin.kdreams.jp/.../racedetail/xxxxxxxxxxxxxxxx/'"
@@ -396,6 +400,9 @@ cv:
 
 cv-top1:
 	$(DOCKER_RUN) ruby scripts/run_timeseries_cv.rb --target-col top1 --out-dir data/ml_cv_top1 --weight-mode $(WEIGHT_MODE) --decay-half-life-days $(DECAY_HALF_LIFE_DAYS) --min-sample-weight $(MIN_SAMPLE_WEIGHT) $(CV_DUCKDB_OPTS) $(CV_OPTS)
+
+cv-half-life-grid:
+	$(DOCKER_RUN) ruby scripts/compare_time_decay_half_life.rb --from-date $(FROM) --to-date $(TO) --half-lives $(HALF_LIFE_GRID) --target-col top3 --out-dir $(HALF_LIFE_CV_OUT_DIR) --min-sample-weight $(MIN_SAMPLE_WEIGHT) $(CV_DUCKDB_OPTS) $(HALF_LIFE_OPTS)
 
 importance:
 	$(DOCKER_RUN) ruby scripts/show_feature_importance.rb
