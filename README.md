@@ -303,6 +303,8 @@ make split-duckdb FROM=2025-01-01 TO=2026-02-25 TRAIN_TO=2026-01-31
 make train
 ```
 
+既定では `split-duckdb` が出力する `data/marts/train_valid/split_id=.../train.parquet` / `valid.parquet` を入力に使用します（CSVを使う場合は `TRAIN_DUCKDB_OPTS` や `TOP*_TRAIN_OPTS` で上書き可能）。
+
 1着モデルを学習する場合:
 
 ```bash
@@ -661,6 +663,7 @@ make full FROM=2025-01-01 TO=2026-02-25 TRAIN_TO=2026-01-31 SLEEP=0.2
 - `CV_DUCKDB_OPTS`（既定: `$(DUCKDB_FEATURE_OPTS)`）
 - `PROFILE_SPLIT_ID`（既定: `FROM_TO_TRAIN_TO` から自動生成）
 - `PROFILE_MART_DIR`（既定: `data/marts/train_valid/split_id=$(PROFILE_SPLIT_ID)`）
+- `TRAIN_DUCKDB_OPTS`（既定: `--train-parquet $(PROFILE_MART_DIR)/train.parquet --valid-parquet $(PROFILE_MART_DIR)/valid.parquet $(DUCKDB_DB_OPTS)`）
 - `TUNE_VALID_PARQUET`（既定: `$(PROFILE_MART_DIR)/valid.parquet`）
 - `TUNE_DUCKDB_OPTS`（既定: `--valid-parquet $(TUNE_VALID_PARQUET) --db-path $(PARQUET_DB)`）
 - `HIT5_PROFILE`（既定: `data/ml/exotic_profile_hit5.json`、`make learn-hit5-profile` / `make predict-hit5` で使用）

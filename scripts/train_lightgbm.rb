@@ -8,6 +8,7 @@ require "json"
 require "open3"
 require "optparse"
 require "rbconfig"
+require_relative "lib/duckdb_runner"
 require_relative "lib/feature_schema"
 require_relative "lib/lightgbm_utils"
 require_relative "lib/model_manifest"
@@ -15,9 +16,12 @@ require_relative "lib/model_manifest"
 class LightGBMTrainer
   WEIGHT_MODES = %w[none time_decay].freeze
 
-  def initialize(train_csv:, valid_csv:, out_dir:, num_iterations:, learning_rate:, num_leaves:, min_data_in_leaf:, early_stopping_round:, target_col:, drop_features:, weight_mode:, decay_half_life_days:, min_sample_weight:)
+  def initialize(train_csv:, valid_csv:, train_parquet:, valid_parquet:, db_path:, out_dir:, num_iterations:, learning_rate:, num_leaves:, min_data_in_leaf:, early_stopping_round:, target_col:, drop_features:, weight_mode:, decay_half_life_days:, min_sample_weight:)
     @train_csv = train_csv
     @valid_csv = valid_csv
+    @train_parquet = train_parquet
+    @valid_parquet = valid_parquet
+    @db_path = db_path
     @out_dir = out_dir
     @num_iterations = num_iterations
     @learning_rate = learning_rate
@@ -36,8 +40,8 @@ class LightGBMTrainer
   def run
     check_lightgbm!
 
-    train_rows = CSV.read(@train_csv, headers: true, encoding: "UTF-8").map(&:to_h)
-    valid_rows = CSV.read(@valid_csv, headers: true, encoding: "UTF-8").map(&:to_h)
+    train_rows = CSV.read(resolved_train_csv, headers: true, encoding: "UTF-8").map(&:to_h)
+    valid_rows = CSV.read(resolved_valid_csv, headers: true, encoding: "UTF-8").map(&:to_h)
     raise "empty train rows" if train_rows.empty?
     raise "empty valid rows" if valid_rows.empty?
     raise "missing target column: #{@target_col}" unless train_rows.first.key?(@target_col)
@@ -68,6 +72,32 @@ class LightGBMTrainer
 
   def check_lightgbm!
     GK::LightGBMUtils.ensure_lightgbm!(message: "lightgbm command not found. Please install LightGBM CLI in Docker image.")
+  end
+
+  def resolved_train_csv
+    return @train_csv if @train_parquet.nil? || @train_parquet.empty?
+
+    materialize_parquet_to_csv(@train_parquet, File.join(@out_dir, "train_from_parquet.csv"))
+  end
+
+  def resolved_valid_csv
+    return @valid_csv if @valid_parquet.nil? || @valid_parquet.empty?
+
+    materialize_parquet_to_csv(@valid_parquet, File.join(@out_dir, "valid_from_parquet.csv"))
+  end
+
+  def materialize_parquet_to_csv(parquet_path, out_csv_path)
+    GK::DuckDBRunner.ensure_duckdb!(message: "duckdb command not found for parquet input")
+    sql = <<~SQL
+      COPY (
+        SELECT *
+        FROM read_parquet(#{GK::DuckDBRunner.sql_quote(parquet_path)})
+      )
+      TO #{GK::DuckDBRunner.sql_quote(out_csv_path)}
+      (HEADER, DELIMITER ',');
+    SQL
+    GK::DuckDBRunner.run_sql!(db_path: @db_path, sql: sql)
+    out_csv_path
   end
 
   def build_encoders(rows)
@@ -185,11 +215,15 @@ class LightGBMTrainer
       RbConfig.ruby,
       "scripts/evaluate_lightgbm.rb",
       "--model", model_path,
-      "--valid-csv", @valid_csv,
       "--encoders", File.join(@out_dir, "encoders.json"),
       "--out-dir", @out_dir,
       "--target-col", @target_col
     ]
+    if @valid_parquet.nil? || @valid_parquet.empty?
+      cmd += ["--valid-csv", @valid_csv]
+    else
+      cmd += ["--valid-parquet", @valid_parquet, "--db-path", @db_path]
+    end
     out, err, status = Open3.capture3(*cmd)
     raise "evaluate_lightgbm failed: #{err}\n#{out}" unless status.success?
 
@@ -218,6 +252,9 @@ end
 options = {
   train_csv: File.join("data", "ml", "train.csv"),
   valid_csv: File.join("data", "ml", "valid.csv"),
+  train_parquet: nil,
+  valid_parquet: nil,
+  db_path: File.join("data", "duckdb", "gk_yosoku.duckdb"),
   out_dir: File.join("data", "ml"),
   num_iterations: 200,
   learning_rate: 0.05,
@@ -235,6 +272,9 @@ parser = OptionParser.new do |opts|
   opts.banner = "Usage: ruby scripts/train_lightgbm.rb [options]"
   opts.on("--train-csv PATH", "train.csv path") { |v| options[:train_csv] = v }
   opts.on("--valid-csv PATH", "valid.csv path") { |v| options[:valid_csv] = v }
+  opts.on("--train-parquet PATH", "train parquet path (optional)") { |v| options[:train_parquet] = v }
+  opts.on("--valid-parquet PATH", "valid parquet path (optional)") { |v| options[:valid_parquet] = v }
+  opts.on("--db-path PATH", "DuckDB DB ファイルパス (parquet利用時)") { |v| options[:db_path] = v }
   opts.on("--out-dir DIR", "output dir") { |v| options[:out_dir] = v }
   opts.on("--num-iterations N", Integer, "boosting rounds") { |v| options[:num_iterations] = v }
   opts.on("--learning-rate X", Float, "learning rate") { |v| options[:learning_rate] = v }
@@ -252,6 +292,9 @@ parser.parse!
 LightGBMTrainer.new(
   train_csv: options[:train_csv],
   valid_csv: options[:valid_csv],
+  train_parquet: options[:train_parquet],
+  valid_parquet: options[:valid_parquet],
+  db_path: options[:db_path],
   out_dir: options[:out_dir],
   num_iterations: options[:num_iterations],
   learning_rate: options[:learning_rate],

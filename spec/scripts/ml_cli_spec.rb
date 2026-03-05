@@ -102,6 +102,35 @@ RSpec.describe "train/eval/tune/run_timeseries_cv" do
     end
   end
 
+  it "train_lightgbm.rb: train/valid parquet指定でも実行できる" do
+    Dir.mktmpdir("spec-train-parquet-") do |tmp|
+      bin_dir = File.join(tmp, "bin")
+      create_fake_lightgbm(bin_dir)
+      create_fake_duckdb(bin_dir)
+      env = { "PATH" => "#{bin_dir}:#{ENV.fetch('PATH', '')}" }
+
+      train_parquet = File.join(tmp, "train.parquet")
+      valid_parquet = File.join(tmp, "valid.parquet")
+      File.write(train_parquet, "fake parquet")
+      File.write(valid_parquet, "fake parquet")
+
+      out_dir = File.join(tmp, "ml")
+      _out, err, st = run_cmd(
+        "ruby", "scripts/train_lightgbm.rb",
+        "--train-parquet", train_parquet,
+        "--valid-parquet", valid_parquet,
+        "--db-path", File.join(tmp, "duckdb", "gk_yosoku.duckdb"),
+        "--out-dir", out_dir,
+        env: env
+      )
+      expect(st.success?).to be(true), err
+      expect(File).to exist(File.join(out_dir, "train_from_parquet.csv"))
+      expect(File).to exist(File.join(out_dir, "valid_from_parquet.csv"))
+      expect(File).to exist(File.join(out_dir, "model.txt"))
+      expect(File).to exist(File.join(out_dir, "model_manifest.json"))
+    end
+  end
+
   it "evaluate_lightgbm.rb: valid-parquet指定でも評価できる" do
     Dir.mktmpdir("spec-eval-parquet-") do |tmp|
       bin_dir = File.join(tmp, "bin")

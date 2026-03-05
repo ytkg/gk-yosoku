@@ -101,6 +101,8 @@ make full FROM=2025-01-01 TO=2026-02-25 TRAIN_TO=2026-01-31 SLEEP=0.2
   既定: `$(DUCKDB_FEATURE_OPTS)`
 - `CV_DUCKDB_OPTS`  
   既定: `$(DUCKDB_FEATURE_OPTS)`
+- `TRAIN_DUCKDB_OPTS`  
+  既定: `--train-parquet $(PROFILE_MART_DIR)/train.parquet --valid-parquet $(PROFILE_MART_DIR)/valid.parquet $(DUCKDB_DB_OPTS)`
 - `TUNE_DUCKDB_OPTS`  
   既定: `--valid-parquet $(TUNE_VALID_PARQUET) $(DUCKDB_DB_OPTS)`
 
