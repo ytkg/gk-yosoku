@@ -522,6 +522,10 @@ make predict-weakodds RACE_URL="https://keirin.kdreams.jp/toride/racedetail/2320
 make predict-exacta RACE_URL="https://keirin.kdreams.jp/toride/racedetail/2320260225030004/"
 ```
 
+補足:
+- `learn-hit5-profile` は `data/marts/train_valid/split_id=.../train.parquet` と `valid.parquet` を入力に使います。
+- 事前に `make split-duckdb FROM=... TO=... TRAIN_TO=...` を実行してください。
+
 現時点の検証結果（validデータ）:
 
 - `default`（`data/ml` + `data/ml_top1`, temp=0.15）  
@@ -592,6 +596,9 @@ make full FROM=2025-01-01 TO=2026-02-25 TRAIN_TO=2026-01-31 SLEEP=0.2
 - `EXOTIC_OPTS`（既定: 空、`make exotic` の追加オプション。例: `--win-csv data/ml_top1/valid_pred.csv`）
 - `TUNE_OPTS`（既定: 空、`make tune` の追加オプション）
 - `CV_OPTS`（既定: 空、`make cv` の追加オプション）
+- `PARQUET_DB`（既定: `data/duckdb/gk_yosoku.duckdb`）
+- `PROFILE_SPLIT_ID`（既定: `FROM_TO_TRAIN_TO` から自動生成）
+- `PROFILE_MART_DIR`（既定: `data/marts/train_valid/split_id=$(PROFILE_SPLIT_ID)`）
 - `HIT5_PROFILE`（既定: `data/ml/exotic_profile_hit5.json`、`make learn-hit5-profile` / `make predict-hit5` で使用）
 - `HIT5_LEARN_OPTS`（既定: 空、`make learn-hit5-profile` の追加オプション）
 - `EXACTA_PROFILE`（既定: `data/ml/exotic_profile_exacta_hit1.json`、`make learn-exacta-profile` / `make eval-exacta-profile` で使用）

@@ -38,6 +38,8 @@ HIT5_TOP3_MODEL ?= data/ml_noplayer/tuning_v2/trial_024/model.txt
 HIT5_TOP3_ENCODERS ?= data/ml_noplayer/tuning_v2/trial_024/encoders.json
 HIT5_TOP1_MODEL ?= data/ml_top1/tuning_v2/trial_002/model.txt
 HIT5_TOP1_ENCODERS ?= data/ml_top1/tuning_v2/trial_002/encoders.json
+PROFILE_SPLIT_ID ?= $(subst -,,$(FROM))_$(subst -,,$(TO))_train_to_$(subst -,,$(TRAIN_TO))
+PROFILE_MART_DIR ?= data/marts/train_valid/split_id=$(PROFILE_SPLIT_ID)
 
 DOCKER_RUN = docker run --rm -v "$$PWD:/app" -w /app $(IMAGE)
 DOCKER_RUN_API = docker run --rm -p 4567:4567 -v "$$PWD:/app" -w /app $(IMAGE)
@@ -330,10 +332,10 @@ eval-exotic-weakodds:
 
 learn-hit5-profile:
 	mkdir -p data/ml_profile/top3_train data/ml_profile/top1_train data/ml_profile/top3_valid data/ml_profile/top1_valid
-	$(DOCKER_RUN) ruby scripts/evaluate_lightgbm.rb --target-col top3 --model $(HIT5_TOP3_MODEL) --encoders $(HIT5_TOP3_ENCODERS) --valid-csv data/ml/train.csv --out-dir data/ml_profile/top3_train
-	$(DOCKER_RUN) ruby scripts/evaluate_lightgbm.rb --target-col top1 --model $(HIT5_TOP1_MODEL) --encoders $(HIT5_TOP1_ENCODERS) --valid-csv data/ml/train.csv --out-dir data/ml_profile/top1_train
-	$(DOCKER_RUN) ruby scripts/evaluate_lightgbm.rb --target-col top3 --model $(HIT5_TOP3_MODEL) --encoders $(HIT5_TOP3_ENCODERS) --valid-csv data/ml/valid.csv --out-dir data/ml_profile/top3_valid
-	$(DOCKER_RUN) ruby scripts/evaluate_lightgbm.rb --target-col top1 --model $(HIT5_TOP1_MODEL) --encoders $(HIT5_TOP1_ENCODERS) --valid-csv data/ml/valid.csv --out-dir data/ml_profile/top1_valid
+	$(DOCKER_RUN) ruby scripts/evaluate_lightgbm.rb --target-col top3 --model $(HIT5_TOP3_MODEL) --encoders $(HIT5_TOP3_ENCODERS) --valid-parquet $(PROFILE_MART_DIR)/train.parquet --db-path $(PARQUET_DB) --out-dir data/ml_profile/top3_train
+	$(DOCKER_RUN) ruby scripts/evaluate_lightgbm.rb --target-col top1 --model $(HIT5_TOP1_MODEL) --encoders $(HIT5_TOP1_ENCODERS) --valid-parquet $(PROFILE_MART_DIR)/train.parquet --db-path $(PARQUET_DB) --out-dir data/ml_profile/top1_train
+	$(DOCKER_RUN) ruby scripts/evaluate_lightgbm.rb --target-col top3 --model $(HIT5_TOP3_MODEL) --encoders $(HIT5_TOP3_ENCODERS) --valid-parquet $(PROFILE_MART_DIR)/valid.parquet --db-path $(PARQUET_DB) --out-dir data/ml_profile/top3_valid
+	$(DOCKER_RUN) ruby scripts/evaluate_lightgbm.rb --target-col top1 --model $(HIT5_TOP1_MODEL) --encoders $(HIT5_TOP1_ENCODERS) --valid-parquet $(PROFILE_MART_DIR)/valid.parquet --db-path $(PARQUET_DB) --out-dir data/ml_profile/top1_valid
 	$(DOCKER_RUN) ruby scripts/learn_exotic_profile.rb --out $(HIT5_PROFILE) $(HIT5_LEARN_OPTS)
 
 learn-exacta-profile:
