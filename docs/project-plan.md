@@ -117,7 +117,8 @@ make cv-top1 FROM=2025-01-01 TO=2026-02-25 \
 
 ### 特徴量出力
 
-- `data/features/features_YYYYMMDD.csv`
+- `data/features/features_YYYYMMDD.csv`（互換CSV）
+- `data/lake/features/feature_set=v1/race_date=YYYY-MM-DD/features_YYYYMMDD.parquet`（標準）
 
 主な列:
 
@@ -135,11 +136,14 @@ make cv-top1 FROM=2025-01-01 TO=2026-02-25 \
 
 ### 学習・評価出力
 
-- `data/ml/train.csv`, `data/ml/valid.csv`
+- `data/ml/train.csv`, `data/ml/valid.csv`（学習器入力CSV）
+- `data/marts/train_valid/split_id=.../train.parquet`, `data/marts/train_valid/split_id=.../valid.parquet`（分割結果Parquet）
 - `data/ml/model.txt`
 - `data/ml/encoders.json`
 - `data/ml/valid_pred.csv`
 - `data/ml/eval_summary.json`
+- `data/ml/valid_from_duckdb.parquet`（DuckDB評価用）
+- `data/ml/valid_from_parquet.csv`（評価時の一時CSV）
 - `data/ml_top1/model.txt`
 - `data/ml_top1/encoders.json`
 - `data/ml_top1/valid_pred.csv`
@@ -150,6 +154,10 @@ make cv-top1 FROM=2025-01-01 TO=2026-02-25 \
 - `data/ml_exacta/valid_pair_pred.csv`
 - `data/ml_exacta/exacta_pred.csv`
 - `data/ml_exacta/eval_summary.json`
+
+補足:
+1. 標準運用の一次データは Parquet（lake/marts）を使う
+2. CSVは学習器互換と一部下流処理のために生成する
 
 ## 検証方針
 
