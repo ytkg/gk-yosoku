@@ -37,6 +37,9 @@ HIT5_PROFILE ?= data/ml/exotic_profile_hit5.json
 HIT5_LEARN_OPTS ?=
 EXACTA_PROFILE ?= data/ml/exotic_profile_exacta_hit1.json
 EXACTA_LEARN_OPTS ?= --objective-n 1 --exacta-weight 1.0 --trifecta-weight 0.0 --temp-grid 0.1,0.12,0.15,0.18,0.2,0.25,0.3 --exp-grid 0.6,0.8,1.0,1.2,1.4 --exacta-second-win-exp-grid 0.0,0.2,0.4,0.7,1.0 --max-trials 2500 --random-seed 42
+EXOTIC_OPT_PROFILE ?= data/ml/exotic_profile_optimized_hitk.json
+EXOTIC_OPT_LEARN_OPTS ?=
+EXOTIC_OPT_EVAL_OUT ?= data/ml/exotic_eval_summary_optimized_hitk.json
 HIT5_TOP3_MODEL ?= data/ml_noplayer/tuning_v2/trial_024/model.txt
 HIT5_TOP3_ENCODERS ?= data/ml_noplayer/tuning_v2/trial_024/encoders.json
 HIT5_TOP1_MODEL ?= data/ml_top1/tuning_v2/trial_002/model.txt
@@ -62,7 +65,7 @@ include .env
 export
 endif
 
-.PHONY: help issue-cycle build api-start api-start-bg api-stop api-logs api-health api-predict api-predict-timeout-check api-smoke api-cli-parity manifest-inspect collect parquet-bootstrap features features-duckdb features-duckdb-sql split split-duckdb validate-duckdb eval-duckdb backup-duckdb restore-duckdb features-exacta train eval train-top1 eval-top1 train-exacta eval-exacta-model train-dual eval-dual train-weakodds eval-weakodds train-top1-weakodds eval-top1-weakodds exotic eval-exotic exotic-weakodds eval-exotic-weakodds learn-hit5-profile learn-exacta-profile eval-exacta-profile tune tune-top1 tune-top3 tune-top3-noplayer tune-weakodds tune-top1-weakodds cv cv-top1 importance predict predict-exacta predict-balanced predict-trifecta predict-hit5 predict-hit5-profile predict-tri5 predict-weakodds test test-duckdb pipeline full
+.PHONY: help issue-cycle build api-start api-start-bg api-stop api-logs api-health api-predict api-predict-timeout-check api-smoke api-cli-parity manifest-inspect collect parquet-bootstrap features features-duckdb features-duckdb-sql split split-duckdb validate-duckdb eval-duckdb backup-duckdb restore-duckdb features-exacta train eval train-top1 eval-top1 train-exacta eval-exacta-model train-dual eval-dual train-weakodds eval-weakodds train-top1-weakodds eval-top1-weakodds exotic eval-exotic exotic-weakodds eval-exotic-weakodds learn-hit5-profile learn-exacta-profile eval-exacta-profile optimize-exotic-hitk tune tune-top1 tune-top3 tune-top3-noplayer tune-weakodds tune-top1-weakodds cv cv-top1 importance predict predict-exacta predict-balanced predict-trifecta predict-hit5 predict-hit5-profile predict-tri5 predict-weakodds test test-duckdb pipeline full
 
 help:
 	@echo "Targets:"
@@ -108,6 +111,7 @@ help:
 	@echo "  make learn-hit5-profile HIT5_PROFILE=data/ml/exotic_profile_hit5.json"
 	@echo "  make learn-exacta-profile EXACTA_PROFILE=data/ml/exotic_profile_exacta_hit1.json"
 	@echo "  make eval-exacta-profile"
+	@echo "  make optimize-exotic-hitk EXOTIC_OPT_PROFILE=data/ml/exotic_profile_optimized_hitk.json EXOTIC_OPT_LEARN_OPTS='--config docs/exotic_profile_config.sample.yml'"
 	@echo "  make tune FROM=YYYY-MM-DD TO=YYYY-MM-DD TRAIN_TO=YYYY-MM-DD TUNE_OPTS='--num-iterations 400 --learning-rates 0.03,0.05'"
 	@echo "  make tune-top3 FROM=YYYY-MM-DD TO=YYYY-MM-DD TRAIN_TO=YYYY-MM-DD TUNE_OPTS='--learning-rates 0.03,0.05 --num-leaves 15,31,63'"
 	@echo "  make tune-top1 FROM=YYYY-MM-DD TO=YYYY-MM-DD TRAIN_TO=YYYY-MM-DD TUNE_OPTS='--learning-rates 0.03,0.05 --drop-features player_name'"
@@ -363,6 +367,11 @@ learn-exacta-profile:
 eval-exacta-profile:
 	$(DOCKER_RUN) ruby scripts/generate_exotics.rb --in-csv data/ml/valid_pred.csv --win-csv data/ml_top1/valid_pred.csv --out-dir data/ml --profile $(EXACTA_PROFILE) --exacta-top 20 --trifecta-top 50
 	$(DOCKER_RUN) ruby scripts/evaluate_exotics.rb --out data/ml/exotic_eval_summary_exacta_profile.json
+
+optimize-exotic-hitk:
+	$(MAKE) learn-hit5-profile HIT5_PROFILE=$(EXOTIC_OPT_PROFILE) HIT5_LEARN_OPTS="$(EXOTIC_OPT_LEARN_OPTS)"
+	$(DOCKER_RUN) ruby scripts/generate_exotics.rb --in-csv data/ml/valid_pred.csv --win-csv data/ml_top1/valid_pred.csv --out-dir data/ml --profile $(EXOTIC_OPT_PROFILE) --exacta-top 20 --trifecta-top 50
+	$(DOCKER_RUN) ruby scripts/evaluate_exotics.rb --out $(EXOTIC_OPT_EVAL_OUT)
 
 tune:
 	$(DOCKER_RUN) ruby scripts/tune_lightgbm.rb --weight-mode $(WEIGHT_MODE) --decay-half-life-days $(DECAY_HALF_LIFE_DAYS) --min-sample-weight $(MIN_SAMPLE_WEIGHT) $(TUNE_DUCKDB_OPTS) $(TUNE_OPTS)

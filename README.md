@@ -574,6 +574,9 @@ make learn-exacta-profile
 # 2連単 hit@1 用プロファイルで valid を再評価
 make eval-exacta-profile
 
+# hit@k 直接最適化（学習→生成→評価）を一括実行
+make optimize-exotic-hitk EXOTIC_OPT_LEARN_OPTS="--config docs/exotic_profile_config.sample.yml"
+
 # 3連単 hit@5 重視
 make predict-tri5 RACE_URL="https://keirin.kdreams.jp/toride/racedetail/2320260225030004/"
 
@@ -588,6 +591,7 @@ make predict-exacta RACE_URL="https://keirin.kdreams.jp/toride/racedetail/232026
 - `learn-hit5-profile` は `data/marts/train_valid/split_id=.../train.parquet` と `valid.parquet` を入力に使います。
 - 事前に `make split-duckdb FROM=... TO=... TRAIN_TO=...` を実行してください。
 - `--config` を使うと `exotic_profile_*.json` の `config.path` に参照設定ファイルが記録されます。
+- `optimize-exotic-hitk` の評価結果は既定で `data/ml/exotic_eval_summary_optimized_hitk.json` に出力されます。
 
 現時点の検証結果（validデータ）:
 
