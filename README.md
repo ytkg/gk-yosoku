@@ -52,6 +52,7 @@ make issue-cycle
 `make issue-cycle` は、親Issue `#32` 運用に沿った日次手順（起票→実装→検証→クローズ）を確認するための簡易ガイドです。
 
 最短DuckDB学習ルート:
+前提: `data/raw/*.csv` があること（未取得なら先に `make collect` を実行）。
 
 ```bash
 make parquet-bootstrap FROM=2025-01-01 TO=2026-02-25
