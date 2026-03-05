@@ -331,6 +331,13 @@ make train TOP3_FEATURE_SET=noplayer
 make train-top1 TOP1_FEATURE_SET=noplayer
 ```
 
+同等のエイリアス:
+
+```bash
+make train-top3-noplayer
+make train-top1-noplayer
+```
+
 オッズ弱依存モデルを学習する場合（既定では `odds_2shatan_min_first` を除外）:
 
 ```bash
@@ -467,6 +474,10 @@ CVは `data/lake/features/feature_set=v1/...` を入力にします。
 make cv FROM=2025-01-01 TO=2026-02-25 \
   CV_OPTS="--from-date 2025-01-01 --to-date 2026-02-25 --train-days 180 --valid-days 28 --step-days 28"
 make cv-top1 FROM=2025-01-01 TO=2026-02-25 \
+  CV_OPTS="--from-date 2025-01-01 --to-date 2026-02-25 --train-days 180 --valid-days 28 --step-days 28"
+make cv-top3-noplayer FROM=2025-01-01 TO=2026-02-25 \
+  CV_OPTS="--from-date 2025-01-01 --to-date 2026-02-25 --train-days 180 --valid-days 28 --step-days 28"
+make cv-top1-noplayer FROM=2025-01-01 TO=2026-02-25 \
   CV_OPTS="--from-date 2025-01-01 --to-date 2026-02-25 --train-days 180 --valid-days 28 --step-days 28"
 
 # 半減期候補を一括比較（time_decay固定）
