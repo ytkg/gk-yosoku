@@ -46,8 +46,8 @@ class TimeSeriesCVRunner
 
       run_split!(split_dir, fold)
       split_outputs = split_output_paths(split_dir, fold)
-      run_train!(split_dir, split_outputs, model_dir)
-      summary = run_eval!(split_dir, split_outputs, model_dir, eval_dir)
+      train_input_mode = run_train!(split_dir, split_outputs, model_dir)
+      summary, eval_input_mode = run_eval!(split_dir, split_outputs, model_dir, eval_dir)
 
       row = {
         "fold" => fold_id,
@@ -56,6 +56,8 @@ class TimeSeriesCVRunner
         "valid_from" => fold[:valid_from].iso8601,
         "valid_to" => fold[:valid_to].iso8601,
         "target_col" => @target_col,
+        "train_input_mode" => train_input_mode,
+        "eval_input_mode" => eval_input_mode,
         "rows" => summary["rows"],
         "races" => summary["races"],
         "auc" => summary["auc"],
@@ -131,11 +133,14 @@ class TimeSeriesCVRunner
     ]
     if split_outputs.values_at(:train_parquet, :valid_parquet).all? { |path| File.exist?(path) }
       cmd += ["--train-parquet", split_outputs[:train_parquet], "--valid-parquet", split_outputs[:valid_parquet], "--db-path", @db_path]
+      input_mode = "parquet"
     else
       cmd += ["--train-csv", File.join(split_dir, "train.csv"), "--valid-csv", File.join(split_dir, "valid.csv")]
+      input_mode = "csv"
     end
     cmd += ["--drop-features", @drop_features.join(",")] unless @drop_features.empty?
     run_cmd!(cmd)
+    input_mode
   end
 
   def run_eval!(split_dir, split_outputs, model_dir, eval_dir)
@@ -148,11 +153,13 @@ class TimeSeriesCVRunner
     ]
     if File.exist?(split_outputs[:valid_parquet])
       cmd += ["--valid-parquet", split_outputs[:valid_parquet], "--db-path", @db_path]
+      input_mode = "parquet"
     else
       cmd += ["--valid-csv", File.join(split_dir, "valid.csv")]
+      input_mode = "csv"
     end
     run_cmd!(cmd)
-    JSON.parse(File.read(File.join(eval_dir, "eval_summary.json"), encoding: "UTF-8"))
+    [JSON.parse(File.read(File.join(eval_dir, "eval_summary.json"), encoding: "UTF-8")), input_mode]
   end
 
   def split_output_paths(split_dir, fold)
@@ -167,6 +174,7 @@ class TimeSeriesCVRunner
   def write_results(rows)
     headers = %w[
       fold train_from train_to valid_from valid_to target_col
+      train_input_mode eval_input_mode
       rows races auc winner_hit_rate top3_exact_match_rate top3_recall_at3
     ]
     path = File.join(@out_dir, "cv_results.csv")
@@ -177,6 +185,10 @@ class TimeSeriesCVRunner
     summary = {
       "folds" => rows.size,
       "target_col" => @target_col,
+      "input_modes" => {
+        "train" => rows.group_by { |r| r["train_input_mode"] }.transform_values(&:size),
+        "eval" => rows.group_by { |r| r["eval_input_mode"] }.transform_values(&:size)
+      },
       "metrics" => {
         "auc" => metric_stats(rows, "auc"),
         "winner_hit_rate" => metric_stats(rows, "winner_hit_rate"),
