@@ -142,6 +142,7 @@ help:
 	@echo "  make issue-cycle"
 	@echo "  make pipeline  FROM=YYYY-MM-DD TO=YYYY-MM-DD TRAIN_TO=YYYY-MM-DD"
 	@echo "  make full      FROM=YYYY-MM-DD TO=YYYY-MM-DD TRAIN_TO=YYYY-MM-DD SLEEP=0.2 CACHE=--cache"
+	@echo "  vars: TOP3_FEATURE_SET=full|noplayer TOP1_FEATURE_SET=full|noplayer"
 
 issue-cycle:
 	@echo "Issue運用サイクル:"
