@@ -103,8 +103,10 @@ make full FROM=2025-01-01 TO=2026-02-25 TRAIN_TO=2026-01-31 SLEEP=0.2
   既定: `$(DUCKDB_FEATURE_OPTS)`
 - `TRAIN_DUCKDB_OPTS`  
   既定: `--train-parquet $(PROFILE_MART_DIR)/train.parquet --valid-parquet $(PROFILE_MART_DIR)/valid.parquet $(DUCKDB_DB_OPTS)`
+- `TUNE_TRAIN_PARQUET`  
+  既定: `$(PROFILE_MART_DIR)/train.parquet`
 - `TUNE_DUCKDB_OPTS`  
-  既定: `--valid-parquet $(TUNE_VALID_PARQUET) $(DUCKDB_DB_OPTS)`
+  既定: `--train-parquet $(TUNE_TRAIN_PARQUET) --valid-parquet $(TUNE_VALID_PARQUET) $(DUCKDB_DB_OPTS)`
 
 上書き例:
 
@@ -117,7 +119,8 @@ make cv CV_DUCKDB_OPTS="--lake-dir data/lake --db-path data/duckdb/gk_yosoku.duc
 
 前提:
 1. `make split-duckdb FROM=... TO=... TRAIN_TO=...` を先に実行
-2. `data/marts/train_valid/split_id=.../valid.parquet` が存在する
+2. `data/marts/train_valid/split_id=.../train.parquet` が存在する
+3. `data/marts/train_valid/split_id=.../valid.parquet` が存在する
 
 実行例:
 

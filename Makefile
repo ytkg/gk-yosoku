@@ -44,8 +44,9 @@ HIT5_TOP1_ENCODERS ?= data/ml_top1/tuning_v2/trial_002/encoders.json
 PROFILE_SPLIT_ID ?= $(subst -,,$(FROM))_$(subst -,,$(TO))_train_to_$(subst -,,$(TRAIN_TO))
 PROFILE_MART_DIR ?= data/marts/train_valid/split_id=$(PROFILE_SPLIT_ID)
 TRAIN_DUCKDB_OPTS ?= --train-parquet $(PROFILE_MART_DIR)/train.parquet --valid-parquet $(PROFILE_MART_DIR)/valid.parquet $(DUCKDB_DB_OPTS)
+TUNE_TRAIN_PARQUET ?= $(PROFILE_MART_DIR)/train.parquet
 TUNE_VALID_PARQUET ?= $(PROFILE_MART_DIR)/valid.parquet
-TUNE_DUCKDB_OPTS ?= --valid-parquet $(TUNE_VALID_PARQUET) $(DUCKDB_DB_OPTS)
+TUNE_DUCKDB_OPTS ?= --train-parquet $(TUNE_TRAIN_PARQUET) --valid-parquet $(TUNE_VALID_PARQUET) $(DUCKDB_DB_OPTS)
 CV_DUCKDB_OPTS ?= $(DUCKDB_FEATURE_OPTS)
 
 DOCKER_RUN = docker run --rm -v "$$PWD:/app" -w /app $(IMAGE)

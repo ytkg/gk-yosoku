@@ -10,9 +10,10 @@ require "optparse"
 class LightGBMTuner
   SORTABLE_METRICS = %w[auc winner_hit_rate top3_exact_match_rate top3_recall_at3].freeze
 
-  def initialize(train_csv:, valid_csv:, valid_parquet:, db_path:, out_dir:, num_iterations:, early_stopping_round:, learning_rates:, num_leaves_list:, min_data_in_leaf_list:, target_col:, drop_features:, sort_metric:, weight_mode:, decay_half_life_days:, min_sample_weight:)
+  def initialize(train_csv:, valid_csv:, train_parquet:, valid_parquet:, db_path:, out_dir:, num_iterations:, early_stopping_round:, learning_rates:, num_leaves_list:, min_data_in_leaf_list:, target_col:, drop_features:, sort_metric:, weight_mode:, decay_half_life_days:, min_sample_weight:)
     @train_csv = train_csv
     @valid_csv = valid_csv
+    @train_parquet = train_parquet
     @valid_parquet = valid_parquet
     @db_path = db_path
     @out_dir = out_dir
@@ -82,8 +83,6 @@ class LightGBMTuner
   def train!(trial_dir, lr, leaves, min_leaf)
     cmd = [
       "ruby", "scripts/train_lightgbm.rb",
-      "--train-csv", @train_csv,
-      "--valid-csv", @valid_csv,
       "--out-dir", trial_dir,
       "--num-iterations", @num_iterations.to_s,
       "--learning-rate", lr.to_s,
@@ -95,6 +94,16 @@ class LightGBMTuner
       "--decay-half-life-days", @decay_half_life_days.to_s,
       "--min-sample-weight", @min_sample_weight.to_s
     ]
+    if @train_parquet.nil? || @train_parquet.empty?
+      cmd += ["--train-csv", @train_csv]
+    else
+      cmd += ["--train-parquet", @train_parquet, "--db-path", @db_path]
+    end
+    if @valid_parquet.nil? || @valid_parquet.empty?
+      cmd += ["--valid-csv", @valid_csv]
+    else
+      cmd += ["--valid-parquet", @valid_parquet, "--db-path", @db_path]
+    end
     cmd += ["--drop-features", @drop_features.join(",")] unless @drop_features.empty?
     run_cmd!(cmd)
   end
@@ -150,6 +159,7 @@ end
 options = {
   train_csv: File.join("data", "ml", "train.csv"),
   valid_csv: File.join("data", "ml", "valid.csv"),
+  train_parquet: nil,
   valid_parquet: nil,
   db_path: File.join("data", "duckdb", "gk_yosoku.duckdb"),
   out_dir: File.join("data", "ml", "tuning"),
@@ -170,6 +180,7 @@ parser = OptionParser.new do |opts|
   opts.banner = "Usage: ruby scripts/tune_lightgbm.rb [options]"
   opts.on("--train-csv PATH", "train.csv path") { |v| options[:train_csv] = v }
   opts.on("--valid-csv PATH", "valid.csv path") { |v| options[:valid_csv] = v }
+  opts.on("--train-parquet PATH", "train parquet path (optional)") { |v| options[:train_parquet] = v }
   opts.on("--valid-parquet PATH", "valid parquet path (optional)") { |v| options[:valid_parquet] = v }
   opts.on("--db-path PATH", "DuckDB DBファイル (valid-parquet利用時)") { |v| options[:db_path] = v }
   opts.on("--out-dir DIR", "tuning output dir") { |v| options[:out_dir] = v }
@@ -194,6 +205,7 @@ end
 LightGBMTuner.new(
   train_csv: options[:train_csv],
   valid_csv: options[:valid_csv],
+  train_parquet: options[:train_parquet],
   valid_parquet: options[:valid_parquet],
   db_path: options[:db_path],
   out_dir: options[:out_dir],

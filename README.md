@@ -664,8 +664,9 @@ make full FROM=2025-01-01 TO=2026-02-25 TRAIN_TO=2026-01-31 SLEEP=0.2
 - `PROFILE_SPLIT_ID`（既定: `FROM_TO_TRAIN_TO` から自動生成）
 - `PROFILE_MART_DIR`（既定: `data/marts/train_valid/split_id=$(PROFILE_SPLIT_ID)`）
 - `TRAIN_DUCKDB_OPTS`（既定: `--train-parquet $(PROFILE_MART_DIR)/train.parquet --valid-parquet $(PROFILE_MART_DIR)/valid.parquet $(DUCKDB_DB_OPTS)`）
+- `TUNE_TRAIN_PARQUET`（既定: `$(PROFILE_MART_DIR)/train.parquet`）
 - `TUNE_VALID_PARQUET`（既定: `$(PROFILE_MART_DIR)/valid.parquet`）
-- `TUNE_DUCKDB_OPTS`（既定: `--valid-parquet $(TUNE_VALID_PARQUET) --db-path $(PARQUET_DB)`）
+- `TUNE_DUCKDB_OPTS`（既定: `--train-parquet $(TUNE_TRAIN_PARQUET) --valid-parquet $(TUNE_VALID_PARQUET) $(DUCKDB_DB_OPTS)`）
 - `HIT5_PROFILE`（既定: `data/ml/exotic_profile_hit5.json`、`make learn-hit5-profile` / `make predict-hit5` で使用）
 - `HIT5_LEARN_OPTS`（既定: 空、`make learn-hit5-profile` の追加オプション）
 - `EXACTA_PROFILE`（既定: `data/ml/exotic_profile_exacta_hit1.json`、`make learn-exacta-profile` / `make eval-exacta-profile` で使用）
