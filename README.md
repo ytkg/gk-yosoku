@@ -49,6 +49,8 @@ make help
 make issue-cycle
 ```
 
+`make issue-cycle` は、親Issue `#32` 運用に沿った日次手順（起票→実装→検証→クローズ）を確認するための簡易ガイドです。
+
 ## CIチェック（PR時）
 
 PRでは次の2つを必須チェックとして扱います。
