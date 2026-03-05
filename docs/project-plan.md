@@ -96,7 +96,10 @@ make cv-top3-noplayer FROM=2025-01-01 TO=2026-02-25 \
   CV_OPTS="--from-date 2025-01-01 --to-date 2026-02-25 --train-days 180 --valid-days 28 --step-days 28"
 make cv-top1-noplayer FROM=2025-01-01 TO=2026-02-25 \
   CV_OPTS="--from-date 2025-01-01 --to-date 2026-02-25 --train-days 180 --valid-days 28 --step-days 28"
+make tune-top3-noplayer TUNE_OPTS="--num-iterations 600 --learning-rates 0.02,0.03,0.05"
 ```
+
+補足: `tune-top3-noplayer` は `top3_exact_match_rate` を主指標に、`player_name` 除外時の過学習抑制効果を比較する用途で使う。
 
 一括実行（取得含む）:
 
