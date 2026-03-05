@@ -150,6 +150,10 @@ make cv-top1 FROM=2025-01-01 TO=2026-02-25 \
 1. `data/ml_cv*/cv_results.csv` の fold 数と期間
 2. `data/ml_cv*/cv_summary.json` の主要指標（auc / winner_hit_rate / top3系）
 
+半減期比較ジョブ（`make cv-half-life-grid`）の出力:
+1. `data/ml_cv_half_life/half_life_leaderboard.csv`
+2. `data/ml_cv_half_life/half_life_summary.json`
+
 ## データ仕様（現行）
 
 ### 取得出力
