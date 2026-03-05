@@ -553,6 +553,9 @@ make learn-hit5-profile
 # 早く回す場合（探索グリッドを絞る）
 make learn-hit5-profile HIT5_LEARN_OPTS="--temp-grid 0.15,0.25 --exp-grid 0.8,1.0 --objective-n 5"
 
+# 設定ファイルで探索条件を固定する場合
+make learn-hit5-profile HIT5_LEARN_OPTS="--config docs/exotic_profile_config.sample.yml"
+
 # 2連単/3連単のバランス重視
 make predict-balanced RACE_URL="https://keirin.kdreams.jp/toride/racedetail/2320260225030004/"
 
@@ -584,6 +587,7 @@ make predict-exacta RACE_URL="https://keirin.kdreams.jp/toride/racedetail/232026
 補足:
 - `learn-hit5-profile` は `data/marts/train_valid/split_id=.../train.parquet` と `valid.parquet` を入力に使います。
 - 事前に `make split-duckdb FROM=... TO=... TRAIN_TO=...` を実行してください。
+- `--config` を使うと `exotic_profile_*.json` の `config.path` に参照設定ファイルが記録されます。
 
 現時点の検証結果（validデータ）:
 

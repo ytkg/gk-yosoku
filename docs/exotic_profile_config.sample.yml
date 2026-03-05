@@ -1,0 +1,8 @@
+objective_n: 5
+exacta_weight: 1.0
+trifecta_weight: 1.0
+temp_grid: [0.15, 0.25]
+exp_grid: [0.8, 1.0]
+exacta_second_win_exp_grid: [0.0, 0.3]
+max_trials: 200
+random_seed: 42

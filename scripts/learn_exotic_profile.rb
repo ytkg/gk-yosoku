@@ -5,10 +5,11 @@ require "csv"
 require "fileutils"
 require "json"
 require "optparse"
+require "yaml"
 require_relative "lib/exotic_scoring"
 
 class ExoticProfileLearner
-  def initialize(train_top3_csv:, train_top1_csv:, train_actual_csv:, valid_top3_csv:, valid_top1_csv:, valid_actual_csv:, out_path:, objective_n:, exacta_weight:, trifecta_weight:, temp_grid:, exp_grid:, exacta_second_win_exp_grid:, max_trials:, random_seed:)
+  def initialize(train_top3_csv:, train_top1_csv:, train_actual_csv:, valid_top3_csv:, valid_top1_csv:, valid_actual_csv:, out_path:, objective_n:, exacta_weight:, trifecta_weight:, temp_grid:, exp_grid:, exacta_second_win_exp_grid:, max_trials:, random_seed:, config_path:)
     @train_top3_csv = train_top3_csv
     @train_top1_csv = train_top1_csv
     @train_actual_csv = train_actual_csv
@@ -24,6 +25,7 @@ class ExoticProfileLearner
     @exacta_second_win_exp_grid = exacta_second_win_exp_grid
     @max_trials = max_trials.to_i
     @random_seed = random_seed.to_i
+    @config_path = config_path
   end
 
   def run
@@ -86,6 +88,7 @@ class ExoticProfileLearner
         "exacta_weight" => @exacta_weight,
         "trifecta_weight" => @trifecta_weight
       },
+      "config" => @config_path.nil? ? nil : { "path" => @config_path },
       "best" => best,
       "train_eval" => train_eval,
       "valid_eval" => valid_eval,
@@ -315,11 +318,13 @@ options = {
   exp_grid: [0.8, 1.0],
   exacta_second_win_exp_grid: [0.0],
   max_trials: 0,
-  random_seed: 42
+  random_seed: 42,
+  config_path: nil
 }
 
 parser = OptionParser.new do |opts|
   opts.banner = "Usage: ruby scripts/learn_exotic_profile.rb [options]"
+  opts.on("--config PATH", "YAML config path (CLI options override config)") { |v| options[:config_path] = v }
   opts.on("--train-top3-csv PATH", "train top3 prediction csv") { |v| options[:train_top3_csv] = v }
   opts.on("--train-top1-csv PATH", "train top1 prediction csv") { |v| options[:train_top1_csv] = v }
   opts.on("--train-actual-csv PATH", "train actual csv") { |v| options[:train_actual_csv] = v }
@@ -336,7 +341,37 @@ parser = OptionParser.new do |opts|
   opts.on("--max-trials N", Integer, "randomly sample at most N parameter combinations (0 means exhaustive)") { |v| options[:max_trials] = v }
   opts.on("--random-seed N", Integer, "random seed for --max-trials sampling (default: 42)") { |v| options[:random_seed] = v }
 end
+
+pre_config_path = nil
+ARGV.each_with_index do |arg, idx|
+  if arg == "--config"
+    pre_config_path = ARGV[idx + 1]
+    next
+  end
+  pre_config_path = arg.split("=", 2)[1] if arg.start_with?("--config=")
+end
+
+if pre_config_path
+  config = YAML.safe_load(File.read(pre_config_path, encoding: "UTF-8"), permitted_classes: [], aliases: false) || {}
+  raise "config must be a mapping" unless config.is_a?(Hash)
+
+  config.each do |key, value|
+    sym = key.to_s.tr("-", "_").to_sym
+    next unless options.key?(sym)
+    next if sym == :config_path
+
+    options[sym] = value
+  end
+  options[:config_path] = pre_config_path
+end
+
 parser.parse!
+
+options[:temp_grid] = options[:temp_grid].split(",").map(&:to_f).select { |x| x.positive? } if options[:temp_grid].is_a?(String)
+options[:exp_grid] = options[:exp_grid].split(",").map(&:to_f).select { |x| x.positive? } if options[:exp_grid].is_a?(String)
+if options[:exacta_second_win_exp_grid].is_a?(String)
+  options[:exacta_second_win_exp_grid] = options[:exacta_second_win_exp_grid].split(",").map(&:to_f).select { |x| x >= 0.0 }
+end
 
 raise "temp-grid is empty" if options[:temp_grid].empty?
 raise "exp-grid is empty" if options[:exp_grid].empty?
@@ -359,5 +394,6 @@ ExoticProfileLearner.new(
   exp_grid: options[:exp_grid],
   exacta_second_win_exp_grid: options[:exacta_second_win_exp_grid],
   max_trials: options[:max_trials],
-  random_seed: options[:random_seed]
+  random_seed: options[:random_seed],
+  config_path: options[:config_path]
 ).run
