@@ -52,6 +52,7 @@ class LightGBMTuner
             "min_data_in_leaf" => min_leaf,
             "target_col" => @target_col,
             "drop_features" => @drop_features,
+            "train_input_mode" => train_input_mode,
             "auc" => summary.fetch("auc"),
             "winner_hit_rate" => summary.fetch("winner_hit_rate")
           }
@@ -135,6 +136,7 @@ class LightGBMTuner
       min_data_in_leaf
       target_col
       drop_features
+      train_input_mode
       auc
       winner_hit_rate
       top3_exact_match_rate
@@ -153,6 +155,12 @@ class LightGBMTuner
   def run_cmd!(cmd)
     out, err, status = Open3.capture3(*cmd)
     raise "command failed: #{cmd.join(' ')}\n#{err}\n#{out}" unless status.success?
+  end
+
+  def train_input_mode
+    return "parquet" unless @train_parquet.nil? || @train_parquet.empty?
+
+    "csv"
   end
 end
 
