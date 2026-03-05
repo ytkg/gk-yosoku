@@ -64,6 +64,13 @@ make eval-duckdb FROM=2026-02-01 TO=2026-02-25
 
 詳細は「主要コマンド（Makefile前提）」を参照してください。
 
+最短予測ルート:
+
+```bash
+make api-start
+make api-predict PAYLOAD=docs/api/request-examples/predict-basic.json
+```
+
 ## CIチェック（PR時）
 
 PRでは次の2つを必須チェックとして扱います。
