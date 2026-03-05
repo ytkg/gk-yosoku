@@ -171,23 +171,34 @@ make cv-top1 FROM=2025-01-01 TO=2026-02-25 \
 
 ## 直近の改善点
 
-- 結果CSVに `result_status` を保持（落車・失格など）
-- `build_features` で履歴特徴量を追加
-- `train` はカテゴリEncoderをtrainデータのみで作成（リーク抑制）
-- Dockerイメージ内に LightGBM CLI を同梱
-- `top3` / `top1` を別目的で運用（目的分離）
-- `train_lightgbm` に時間減衰サンプル重み（`weight_mode=time_decay`）を追加
-- 相性特徴量（`pair_*`, `triplet_*`）を追加
-- 時系列CV実行スクリプトを追加
-- `generate_exotics` のスコア丸めを高精度化し、`eval-exotic` と `predict` の順位ずれを縮小
-- 予測プリセットを再最適化（balanced: `trial_024 + trial_029 + temp=0.30`, trifecta: `trial_027 + trial_002 + temp=0.20`）
-- `hit@5` 重視プリセットを追加（hit5: `trial_024 + trial_002 + temp=0.35`, tri5: `trial_008 + trial_014 + temp=0.15`）
-- 追加候補比較（2026-02-28）を実施し、上記 `hit5` / `tri5` プリセットが依然ベストであることを確認
-- `learn_exotic_profile.rb` を追加し、hit@N目的で温度・指数を学習して `predict` / `generate_exotics` に適用可能化
-- `learn_exotic_profile.rb` にランダム探索上限（`--max-trials`）を追加し、hit@1向けの大きい探索空間を現実的な時間で実行可能化
-- 2連単スコアに `exacta.second_win_exp` を追加し、2着側に top1 情報を混ぜる調整が可能に
-- exacta専用モデル（順序ペア直接学習）を追加し、`data/ml_exacta` で学習・評価可能化
-- `predict_race.rb` で exactaモデルをオプション適用（`--exacta-model` / `make predict-exacta`）し、既定は従来合成
+### PR3: API運用基盤
+
+- SinatraベースのPrediction APIを整備
+- CLI/API同値性チェックと契約テストを整備
+- ローカル運用導線（start/stop/health/predict/smoke）を標準化
+
+### PR4-PR5: DuckDB/Parquet移行と運用一本化
+
+- `parquet-bootstrap` / `features-duckdb` / `split-duckdb` / `validate-duckdb` / `eval-duckdb` を整備
+- SQLテンプレート（staging/features/split/eval）を整備
+- CIでDuckDB parityを継続実行
+- ドキュメントとMake導線をDuckDB前提に統一
+
+### PR6-PR11: 評価・CV・チューニングのDuckDB統一
+
+- `run_timeseries_cv` の分割経路をDuckDB化
+- `evaluate_lightgbm` に `--valid-parquet` を追加
+- top1/weakodds評価を `eval-duckdb` 経路へ統一
+- `learn-hit5-profile` の入力を marts Parquet に統一
+- `tune_lightgbm` の valid 入力をParquet対応
+- README / Make help / project-plan を最新導線へ更新
+
+### モデル改善（継続）
+
+- `top3` / `top1` の目的分離運用
+- 時間減衰サンプル重み（`weight_mode=time_decay`）
+- 相性特徴量（`pair_*`, `triplet_*`）
+- exacta専用モデル追加と `predict-exacta` 導線整備
 
 ## 既知の方針
 
