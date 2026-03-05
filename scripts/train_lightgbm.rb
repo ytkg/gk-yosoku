@@ -205,6 +205,7 @@ class LightGBMTrainer
       valid_to: valid_dates.max.iso8601,
       metrics: {}
     )
+    manifest["input_mode"] = infer_input_mode
     GK::ModelManifest.validate_required_keys!(manifest)
     path = File.join(@out_dir, "model_manifest.json")
     File.write(path, JSON.pretty_generate(manifest))
@@ -246,6 +247,12 @@ class LightGBMTrainer
       "rows",
       "races"
     )
+  end
+
+  def infer_input_mode
+    return "parquet" unless @train_parquet.nil? || @train_parquet.empty?
+
+    "csv"
   end
 end
 
