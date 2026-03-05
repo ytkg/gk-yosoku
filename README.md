@@ -605,6 +605,9 @@ make eval-exacta-profile
 # hit@k 直接最適化（学習→生成→評価）を一括実行
 make optimize-exotic-hitk EXOTIC_OPT_LEARN_OPTS="--config docs/exotic_profile_config.sample.yml"
 
+# topN を一括指定（exacta,trifecta）
+make optimize-exotic-hitk EXOTIC_TOPS="20,50" EXOTIC_OPT_LEARN_OPTS="--config docs/exotic_profile_config.sample.yml"
+
 # 3連単 hit@5 重視
 make predict-tri5 RACE_URL="https://keirin.kdreams.jp/toride/racedetail/2320260225030004/"
 
@@ -620,6 +623,7 @@ make predict-exacta RACE_URL="https://keirin.kdreams.jp/toride/racedetail/232026
 - 事前に `make split-duckdb FROM=... TO=... TRAIN_TO=...` を実行してください。
 - `--config` を使うと `exotic_profile_*.json` の `config.path` に参照設定ファイルが記録されます。
 - `--config` 併用時にCLIで上書きしたキーは `config.cli_overrides` に記録されます。
+- `EXOTIC_TOPS` は `exacta_top,trifecta_top` の順で指定します（例: `20,50`）。
 - `optimize-exotic-hitk` の評価結果は既定で `data/ml/exotic_eval_summary_optimized_hitk.json` に出力されます。
 
 現時点の検証結果（validデータ）:

@@ -43,6 +43,11 @@ EXACTA_LEARN_OPTS ?= --objective-n 1 --exacta-weight 1.0 --trifecta-weight 0.0 -
 EXOTIC_OPT_PROFILE ?= data/ml/exotic_profile_optimized_hitk.json
 EXOTIC_OPT_LEARN_OPTS ?=
 EXOTIC_OPT_EVAL_OUT ?= data/ml/exotic_eval_summary_optimized_hitk.json
+EXOTIC_TOPS ?= 20,50
+comma := ,
+EXOTIC_TOPS_WORDS := $(subst $(comma), ,$(EXOTIC_TOPS))
+EXACTA_TOP_N := $(word 1,$(EXOTIC_TOPS_WORDS))
+TRIFECTA_TOP_N := $(word 2,$(EXOTIC_TOPS_WORDS))
 HIT5_TOP3_MODEL ?= data/ml_noplayer/tuning_v2/trial_024/model.txt
 HIT5_TOP3_ENCODERS ?= data/ml_noplayer/tuning_v2/trial_024/encoders.json
 HIT5_TOP1_MODEL ?= data/ml_top1/tuning_v2/trial_002/model.txt
@@ -120,7 +125,7 @@ help:
 	@echo "  make learn-hit5-profile HIT5_PROFILE=data/ml/exotic_profile_hit5.json"
 	@echo "  make learn-exacta-profile EXACTA_PROFILE=data/ml/exotic_profile_exacta_hit1.json"
 	@echo "  make eval-exacta-profile"
-	@echo "  make optimize-exotic-hitk EXOTIC_OPT_PROFILE=data/ml/exotic_profile_optimized_hitk.json EXOTIC_OPT_LEARN_OPTS='--config docs/exotic_profile_config.sample.yml'"
+	@echo "  make optimize-exotic-hitk EXOTIC_TOPS='20,50' EXOTIC_OPT_PROFILE=data/ml/exotic_profile_optimized_hitk.json EXOTIC_OPT_LEARN_OPTS='--config docs/exotic_profile_config.sample.yml'"
 	@echo "  make tune FROM=YYYY-MM-DD TO=YYYY-MM-DD TRAIN_TO=YYYY-MM-DD TUNE_OPTS='--num-iterations 400 --learning-rates 0.03,0.05'"
 	@echo "  make tune-top3 FROM=YYYY-MM-DD TO=YYYY-MM-DD TRAIN_TO=YYYY-MM-DD TUNE_OPTS='--learning-rates 0.03,0.05 --num-leaves 15,31,63'"
 	@echo "  make tune-top1 FROM=YYYY-MM-DD TO=YYYY-MM-DD TRAIN_TO=YYYY-MM-DD TOP1_FEATURE_SET=noplayer TUNE_OPTS='--learning-rates 0.03,0.05'"
@@ -391,7 +396,7 @@ eval-exacta-profile:
 
 optimize-exotic-hitk:
 	$(MAKE) learn-hit5-profile HIT5_PROFILE=$(EXOTIC_OPT_PROFILE) HIT5_LEARN_OPTS="$(EXOTIC_OPT_LEARN_OPTS)"
-	$(DOCKER_RUN) ruby scripts/generate_exotics.rb --in-csv data/ml/valid_pred.csv --win-csv data/ml_top1/valid_pred.csv --out-dir data/ml --profile $(EXOTIC_OPT_PROFILE) --exacta-top 20 --trifecta-top 50
+	$(DOCKER_RUN) ruby scripts/generate_exotics.rb --in-csv data/ml/valid_pred.csv --win-csv data/ml_top1/valid_pred.csv --out-dir data/ml --profile $(EXOTIC_OPT_PROFILE) --exacta-top $(EXACTA_TOP_N) --trifecta-top $(TRIFECTA_TOP_N)
 	$(DOCKER_RUN) ruby scripts/evaluate_exotics.rb --out $(EXOTIC_OPT_EVAL_OUT)
 
 tune:
