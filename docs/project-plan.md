@@ -31,6 +31,13 @@
 - 環境: Docker
 - 実行インターフェース: Makefile
 
+## 運用ルール（Issue駆動）
+
+- 親Issue: [#32](https://github.com/ytkg/gk-yosoku/issues/32) を常設運用する
+- 実装は「子Issue起票 -> 実装/検証 -> コミット -> 子Issueクローズ」の単位で進行する
+- 子Issueが0件でも親Issueはクローズしない
+- 方針変更や完了判定の更新は、親Issue本文と本ドキュメントの両方に反映する
+
 ## パイプライン構成（現行）
 
 - 取得: `scripts/collect_data.rb`
