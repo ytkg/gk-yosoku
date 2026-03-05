@@ -47,6 +47,7 @@
 5. 子Issueをクローズする
 6. 必要に応じて改善Issueを1件以上起票する
 7. 親Issue #32 の進捗欄・次候補欄を更新する
+8. `gh issue list --state open` で open issue を確認する
 
 ## 次候補更新ルール（簡易）
 
