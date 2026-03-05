@@ -91,12 +91,18 @@ make full FROM=2025-01-01 TO=2026-02-25 TRAIN_TO=2026-01-31 SLEEP=0.2
 
 ## DuckDB共通オプション変数（Make）
 
+- `FEATURE_SET_VERSION`  
+  既定: `v1`
+- `DUCKDB_DB_OPTS`  
+  既定: `--db-path $(PARQUET_DB)`
+- `DUCKDB_FEATURE_OPTS`  
+  既定: `--lake-dir $(LAKE_DIR) --feature-set-version $(FEATURE_SET_VERSION) $(DUCKDB_DB_OPTS)`
 - `EVAL_DUCKDB_BASE_OPTS`  
-  既定: `--lake-dir data/lake --feature-set-version v1 --db-path data/duckdb/gk_yosoku.duckdb`
+  既定: `$(DUCKDB_FEATURE_OPTS)`
 - `CV_DUCKDB_OPTS`  
-  既定: `--lake-dir data/lake --db-path data/duckdb/gk_yosoku.duckdb --feature-set-version v1`
+  既定: `$(DUCKDB_FEATURE_OPTS)`
 - `TUNE_DUCKDB_OPTS`  
-  既定: `--valid-parquet $(TUNE_VALID_PARQUET) --db-path $(PARQUET_DB)`
+  既定: `--valid-parquet $(TUNE_VALID_PARQUET) $(DUCKDB_DB_OPTS)`
 
 上書き例:
 
@@ -128,9 +134,9 @@ make tune FROM=2025-01-01 TO=2026-02-25 TRAIN_TO=2026-01-31 \
 
 ```bash
 make cv FROM=2025-01-01 TO=2026-02-25 \
-  CV_OPTS="--from-date 2025-01-01 --to-date 2026-02-25 --train-days 180 --valid-days 28 --step-days 28 --lake-dir data/lake --db-path data/duckdb/gk_yosoku.duckdb --feature-set-version v1"
+  CV_OPTS="--from-date 2025-01-01 --to-date 2026-02-25 --train-days 180 --valid-days 28 --step-days 28"
 make cv-top1 FROM=2025-01-01 TO=2026-02-25 \
-  CV_OPTS="--from-date 2025-01-01 --to-date 2026-02-25 --train-days 180 --valid-days 28 --step-days 28 --lake-dir data/lake --db-path data/duckdb/gk_yosoku.duckdb --feature-set-version v1"
+  CV_OPTS="--from-date 2025-01-01 --to-date 2026-02-25 --train-days 180 --valid-days 28 --step-days 28"
 ```
 
 確認ポイント:

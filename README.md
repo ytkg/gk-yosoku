@@ -448,9 +448,9 @@ CVは `data/lake/features/feature_set=v1/...` を入力にします。
 
 ```bash
 make cv FROM=2025-01-01 TO=2026-02-25 \
-  CV_OPTS="--from-date 2025-01-01 --to-date 2026-02-25 --train-days 180 --valid-days 28 --step-days 28 --lake-dir data/lake --db-path data/duckdb/gk_yosoku.duckdb --feature-set-version v1"
+  CV_OPTS="--from-date 2025-01-01 --to-date 2026-02-25 --train-days 180 --valid-days 28 --step-days 28"
 make cv-top1 FROM=2025-01-01 TO=2026-02-25 \
-  CV_OPTS="--from-date 2025-01-01 --to-date 2026-02-25 --train-days 180 --valid-days 28 --step-days 28 --lake-dir data/lake --db-path data/duckdb/gk_yosoku.duckdb --feature-set-version v1"
+  CV_OPTS="--from-date 2025-01-01 --to-date 2026-02-25 --train-days 180 --valid-days 28 --step-days 28"
 ```
 
 出力:
@@ -652,8 +652,11 @@ make full FROM=2025-01-01 TO=2026-02-25 TRAIN_TO=2026-01-31 SLEEP=0.2
 - `TUNE_OPTS`（既定: 空、`make tune` の追加オプション）
 - `CV_OPTS`（既定: 空、`make cv` の追加オプション）
 - `PARQUET_DB`（既定: `data/duckdb/gk_yosoku.duckdb`）
-- `EVAL_DUCKDB_BASE_OPTS`（既定: `--lake-dir data/lake --feature-set-version v1 --db-path data/duckdb/gk_yosoku.duckdb`）
-- `CV_DUCKDB_OPTS`（既定: `--lake-dir data/lake --db-path data/duckdb/gk_yosoku.duckdb --feature-set-version v1`）
+- `FEATURE_SET_VERSION`（既定: `v1`）
+- `DUCKDB_DB_OPTS`（既定: `--db-path $(PARQUET_DB)`）
+- `DUCKDB_FEATURE_OPTS`（既定: `--lake-dir $(LAKE_DIR) --feature-set-version $(FEATURE_SET_VERSION) $(DUCKDB_DB_OPTS)`）
+- `EVAL_DUCKDB_BASE_OPTS`（既定: `$(DUCKDB_FEATURE_OPTS)`）
+- `CV_DUCKDB_OPTS`（既定: `$(DUCKDB_FEATURE_OPTS)`）
 - `PROFILE_SPLIT_ID`（既定: `FROM_TO_TRAIN_TO` から自動生成）
 - `PROFILE_MART_DIR`（既定: `data/marts/train_valid/split_id=$(PROFILE_SPLIT_ID)`）
 - `TUNE_VALID_PARQUET`（既定: `$(PROFILE_MART_DIR)/valid.parquet`）
@@ -682,7 +685,7 @@ make collect FROM=2026-01-01 TO=2026-02-25 SLEEP=0.1
 DuckDB共通オプションを上書きする例:
 
 ```bash
-make cv CV_DUCKDB_OPTS="--lake-dir data/lake --db-path data/duckdb/gk_yosoku.duckdb --feature-set-version v1" \
+make cv CV_DUCKDB_OPTS="--lake-dir data/lake --feature-set-version v1 --db-path data/duckdb/gk_yosoku.duckdb" \
   CV_OPTS="--from-date 2026-01-01 --to-date 2026-02-25 --train-days 120 --valid-days 28 --step-days 28"
 ```
 

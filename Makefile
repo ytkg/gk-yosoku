@@ -23,13 +23,15 @@ EXACTA_EVAL_OPTS ?=
 CV_OPTS ?=
 LAKE_DIR ?= data/lake
 PARQUET_DB ?= data/duckdb/gk_yosoku.duckdb
+FEATURE_SET_VERSION ?= v1
+DUCKDB_DB_OPTS ?= --db-path $(PARQUET_DB)
+DUCKDB_FEATURE_OPTS ?= --lake-dir $(LAKE_DIR) --feature-set-version $(FEATURE_SET_VERSION) $(DUCKDB_DB_OPTS)
 EVAL_DUCKDB_OPTS ?=
 EVAL_MODEL ?= data/ml/model.txt
 EVAL_ENCODERS ?= data/ml/encoders.json
 EVAL_OUT_DIR ?= data/ml
 EVAL_TARGET_COL ?= top3
-EVAL_FEATURE_SET_VERSION ?= v1
-EVAL_DUCKDB_BASE_OPTS ?= --lake-dir $(LAKE_DIR) --feature-set-version $(EVAL_FEATURE_SET_VERSION) --db-path $(PARQUET_DB)
+EVAL_DUCKDB_BASE_OPTS ?= $(DUCKDB_FEATURE_OPTS)
 DUCKDB_BACKUP_DIR ?= data/duckdb_backup
 HIT5_PROFILE ?= data/ml/exotic_profile_hit5.json
 HIT5_LEARN_OPTS ?=
@@ -42,8 +44,8 @@ HIT5_TOP1_ENCODERS ?= data/ml_top1/tuning_v2/trial_002/encoders.json
 PROFILE_SPLIT_ID ?= $(subst -,,$(FROM))_$(subst -,,$(TO))_train_to_$(subst -,,$(TRAIN_TO))
 PROFILE_MART_DIR ?= data/marts/train_valid/split_id=$(PROFILE_SPLIT_ID)
 TUNE_VALID_PARQUET ?= $(PROFILE_MART_DIR)/valid.parquet
-TUNE_DUCKDB_OPTS ?= --valid-parquet $(TUNE_VALID_PARQUET) --db-path $(PARQUET_DB)
-CV_DUCKDB_OPTS ?= --lake-dir $(LAKE_DIR) --db-path $(PARQUET_DB) --feature-set-version v1
+TUNE_DUCKDB_OPTS ?= --valid-parquet $(TUNE_VALID_PARQUET) $(DUCKDB_DB_OPTS)
+CV_DUCKDB_OPTS ?= $(DUCKDB_FEATURE_OPTS)
 
 DOCKER_RUN = docker run --rm -v "$$PWD:/app" -w /app $(IMAGE)
 DOCKER_RUN_API = docker run --rm -p 4567:4567 -v "$$PWD:/app" -w /app $(IMAGE)
@@ -108,8 +110,8 @@ help:
 	@echo "  make tune-top3-noplayer FROM=YYYY-MM-DD TO=YYYY-MM-DD TRAIN_TO=YYYY-MM-DD TUNE_OPTS='--learning-rates 0.03,0.05 --num-leaves 15,31,63'"
 	@echo "  make tune-weakodds FROM=YYYY-MM-DD TO=YYYY-MM-DD TRAIN_TO=YYYY-MM-DD WEAK_DROP='odds_2shatan_min_first'"
 	@echo "  make tune-top1-weakodds FROM=YYYY-MM-DD TO=YYYY-MM-DD TRAIN_TO=YYYY-MM-DD WEAK_DROP='odds_2shatan_min_first'"
-	@echo "  make cv FROM=YYYY-MM-DD TO=YYYY-MM-DD CV_OPTS='--from-date ... --to-date ... --train-days 180 --valid-days 28 --step-days 28 --lake-dir data/lake --db-path data/duckdb/gk_yosoku.duckdb --feature-set-version v1'"
-	@echo "  make cv-top1 FROM=YYYY-MM-DD TO=YYYY-MM-DD CV_OPTS='--from-date ... --to-date ... --train-days 180 --valid-days 28 --step-days 28 --lake-dir data/lake --db-path data/duckdb/gk_yosoku.duckdb --feature-set-version v1'"
+	@echo "  make cv FROM=YYYY-MM-DD TO=YYYY-MM-DD CV_OPTS='--from-date ... --to-date ... --train-days 180 --valid-days 28 --step-days 28'"
+	@echo "  make cv-top1 FROM=YYYY-MM-DD TO=YYYY-MM-DD CV_OPTS='--from-date ... --to-date ... --train-days 180 --valid-days 28 --step-days 28'"
 	@echo "  make importance"
 	@echo "  make predict   RACE_URL='https://keirin.kdreams.jp/.../racedetail/xxxxxxxxxxxxxxxx/' PREDICT_OPTS='--exacta-top 20 --trifecta-top 50'"
 	@echo "  make predict-exacta RACE_URL='https://keirin.kdreams.jp/.../racedetail/xxxxxxxxxxxxxxxx/'"
