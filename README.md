@@ -484,6 +484,10 @@ make cv-top1-noplayer FROM=2025-01-01 TO=2026-02-25 \
 make cv-half-life-grid FROM=2025-01-01 TO=2026-02-25 HALF_LIFE_GRID="60,90,120,180"
 ```
 
+半減期比較ジョブの主な出力:
+- `data/ml_cv_half_life/half_life_leaderboard.csv`
+- `data/ml_cv_half_life/half_life_summary.json`
+
 出力:
 - `data/ml_cv/cv_results.csv`, `data/ml_cv/cv_summary.json`
 - `data/ml_cv_top1/cv_results.csv`, `data/ml_cv_top1/cv_summary.json`
