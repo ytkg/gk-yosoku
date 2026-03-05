@@ -54,6 +54,13 @@ make issue-cycle
 `make issue-cycle` は、親Issue `#32` 運用に沿った日次手順（起票→実装→検証→クローズ）を確認するための簡易ガイドです。
 サイクル末尾で `gh issue list --state open` を実行し、open issue を確認してください。
 
+最小実行例:
+
+```bash
+make issue-cycle
+gh issue list --state open
+```
+
 1. 最短DuckDB学習ルート  
 前提: `data/raw/*.csv` があること（未取得なら先に `make collect`）。
 
