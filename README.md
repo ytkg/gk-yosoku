@@ -324,6 +324,13 @@ make train WEIGHT_MODE=time_decay DECAY_HALF_LIFE_DAYS=120 MIN_SAMPLE_WEIGHT=0.2
 make train-top1 WEIGHT_MODE=time_decay DECAY_HALF_LIFE_DAYS=120 MIN_SAMPLE_WEIGHT=0.2
 ```
 
+特徴量セットを切り替える場合（`player_name` を除外）:
+
+```bash
+make train TOP3_FEATURE_SET=noplayer
+make train-top1 TOP1_FEATURE_SET=noplayer
+```
+
 オッズ弱依存モデルを学習する場合（既定では `odds_2shatan_min_first` を除外）:
 
 ```bash
