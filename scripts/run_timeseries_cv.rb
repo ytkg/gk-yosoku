@@ -45,8 +45,9 @@ class TimeSeriesCVRunner
       FileUtils.mkdir_p(eval_dir)
 
       run_split!(split_dir, fold)
-      run_train!(split_dir, model_dir)
-      summary = run_eval!(split_dir, model_dir, eval_dir)
+      split_outputs = split_output_paths(split_dir, fold)
+      run_train!(split_dir, split_outputs, model_dir)
+      summary = run_eval!(split_dir, split_outputs, model_dir, eval_dir)
 
       row = {
         "fold" => fold_id,
@@ -119,32 +120,48 @@ class TimeSeriesCVRunner
     run_cmd!(cmd)
   end
 
-  def run_train!(split_dir, model_dir)
+  def run_train!(split_dir, split_outputs, model_dir)
     cmd = [
       "ruby", "scripts/train_lightgbm.rb",
-      "--train-csv", File.join(split_dir, "train.csv"),
-      "--valid-csv", File.join(split_dir, "valid.csv"),
       "--out-dir", model_dir,
       "--target-col", @target_col,
       "--weight-mode", @weight_mode.to_s,
       "--decay-half-life-days", @decay_half_life_days.to_s,
       "--min-sample-weight", @min_sample_weight.to_s
     ]
+    if split_outputs.values_at(:train_parquet, :valid_parquet).all? { |path| File.exist?(path) }
+      cmd += ["--train-parquet", split_outputs[:train_parquet], "--valid-parquet", split_outputs[:valid_parquet], "--db-path", @db_path]
+    else
+      cmd += ["--train-csv", File.join(split_dir, "train.csv"), "--valid-csv", File.join(split_dir, "valid.csv")]
+    end
     cmd += ["--drop-features", @drop_features.join(",")] unless @drop_features.empty?
     run_cmd!(cmd)
   end
 
-  def run_eval!(split_dir, model_dir, eval_dir)
+  def run_eval!(split_dir, split_outputs, model_dir, eval_dir)
     cmd = [
       "ruby", "scripts/evaluate_lightgbm.rb",
       "--model", File.join(model_dir, "model.txt"),
       "--encoders", File.join(model_dir, "encoders.json"),
-      "--valid-csv", File.join(split_dir, "valid.csv"),
       "--out-dir", eval_dir,
       "--target-col", @target_col
     ]
+    if File.exist?(split_outputs[:valid_parquet])
+      cmd += ["--valid-parquet", split_outputs[:valid_parquet], "--db-path", @db_path]
+    else
+      cmd += ["--valid-csv", File.join(split_dir, "valid.csv")]
+    end
     run_cmd!(cmd)
     JSON.parse(File.read(File.join(eval_dir, "eval_summary.json"), encoding: "UTF-8"))
+  end
+
+  def split_output_paths(split_dir, fold)
+    split_id = "#{fold[:train_from].strftime('%Y%m%d')}_#{fold[:valid_to].strftime('%Y%m%d')}_train_to_#{fold[:train_to].strftime('%Y%m%d')}"
+    mart_split_dir = File.join(split_dir, "mart", "split_id=#{split_id}")
+    {
+      train_parquet: File.join(mart_split_dir, "train.parquet"),
+      valid_parquet: File.join(mart_split_dir, "valid.parquet")
+    }
   end
 
   def write_results(rows)
