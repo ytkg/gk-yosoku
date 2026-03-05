@@ -121,7 +121,7 @@ help:
 	@echo "  make optimize-exotic-hitk EXOTIC_OPT_PROFILE=data/ml/exotic_profile_optimized_hitk.json EXOTIC_OPT_LEARN_OPTS='--config docs/exotic_profile_config.sample.yml'"
 	@echo "  make tune FROM=YYYY-MM-DD TO=YYYY-MM-DD TRAIN_TO=YYYY-MM-DD TUNE_OPTS='--num-iterations 400 --learning-rates 0.03,0.05'"
 	@echo "  make tune-top3 FROM=YYYY-MM-DD TO=YYYY-MM-DD TRAIN_TO=YYYY-MM-DD TUNE_OPTS='--learning-rates 0.03,0.05 --num-leaves 15,31,63'"
-	@echo "  make tune-top1 FROM=YYYY-MM-DD TO=YYYY-MM-DD TRAIN_TO=YYYY-MM-DD TUNE_OPTS='--learning-rates 0.03,0.05 --drop-features player_name'"
+	@echo "  make tune-top1 FROM=YYYY-MM-DD TO=YYYY-MM-DD TRAIN_TO=YYYY-MM-DD TOP1_FEATURE_SET=noplayer TUNE_OPTS='--learning-rates 0.03,0.05'"
 	@echo "  make tune-top3-noplayer FROM=YYYY-MM-DD TO=YYYY-MM-DD TRAIN_TO=YYYY-MM-DD TUNE_OPTS='--learning-rates 0.03,0.05 --num-leaves 15,31,63'"
 	@echo "  make tune-weakodds FROM=YYYY-MM-DD TO=YYYY-MM-DD TRAIN_TO=YYYY-MM-DD WEAK_DROP='odds_2shatan_min_first'"
 	@echo "  make tune-top1-weakodds FROM=YYYY-MM-DD TO=YYYY-MM-DD TRAIN_TO=YYYY-MM-DD WEAK_DROP='odds_2shatan_min_first'"
