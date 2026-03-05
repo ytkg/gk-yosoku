@@ -312,4 +312,73 @@ RSpec.describe "train/eval/tune/run_timeseries_cv" do
       expect(err).to include("no folds generated")
     end
   end
+
+  it "run_timeseries_cv.rb: parquet未生成時はcsvフォールバック経路を記録する" do
+    Dir.mktmpdir("spec-cv-csv-fallback-") do |tmp|
+      bin_dir = File.join(tmp, "bin")
+      create_fake_lightgbm(bin_dir)
+      create_fake_duckdb_csv_only(bin_dir)
+      env = { "PATH" => "#{bin_dir}:#{ENV.fetch('PATH', '')}" }
+
+      lake_dir = File.join(tmp, "lake")
+      db_path = File.join(tmp, "duckdb", "gk_yosoku.duckdb")
+      out_dir = File.join(tmp, "cv")
+      (Date.iso8601("2026-01-01")..Date.iso8601("2026-01-04")).each do |d|
+        ymd = d.strftime("%Y%m%d")
+        parquet_path = File.join(
+          lake_dir,
+          "features",
+          "feature_set=v1",
+          "race_date=#{d.iso8601}",
+          "features_#{ymd}.parquet"
+        )
+        FileUtils.mkdir_p(File.dirname(parquet_path))
+        File.write(parquet_path, "fake parquet")
+      end
+
+      _out, err, st = run_cmd(
+        "ruby", "scripts/run_timeseries_cv.rb",
+        "--from-date", "2026-01-01",
+        "--to-date", "2026-01-04",
+        "--train-days", "2",
+        "--valid-days", "2",
+        "--step-days", "2",
+        "--lake-dir", lake_dir,
+        "--db-path", db_path,
+        "--feature-set-version", "v1",
+        "--out-dir", out_dir,
+        "--target-col", "top3",
+        env: env
+      )
+      expect(st.success?).to be(true), err
+
+      summary = JSON.parse(File.read(File.join(out_dir, "cv_summary.json"), encoding: "UTF-8"))
+      expect(summary.dig("input_modes", "train", "csv")).to eq(1)
+      expect(summary.dig("input_modes", "eval", "csv")).to eq(1)
+    end
+  end
+
+  def create_fake_duckdb_csv_only(bin_dir)
+    FileUtils.mkdir_p(bin_dir)
+    path = File.join(bin_dir, "duckdb")
+    File.write(path, <<~'SCRIPT')
+      #!/usr/bin/env ruby
+      require "fileutils"
+
+      sql = STDIN.read
+      sql.scan(/TO\s+'([^']+)'/i).flatten.each do |out_path|
+        FileUtils.mkdir_p(File.dirname(out_path))
+        next if out_path.end_with?(".parquet")
+
+        if out_path.end_with?("summary.csv")
+          File.write(out_path, "csv_rows,parquet_rows,csv_only_keys,parquet_only_keys,rank_diff,top1_diff,top3_diff\n1,1,0,0,0,0,0\n")
+        elsif out_path.end_with?(".csv")
+          File.write(out_path, "race_id,race_date,venue,race_number,car_number,player_name,rank,top1,top3,mark_symbol,leg_style\nr1,2026-02-25,toride,1,1,A,1,1,1,◎,逃\n")
+        end
+      end
+      puts "duckdb ok"
+    SCRIPT
+    FileUtils.chmod("u+x", path)
+    path
+  end
 end
