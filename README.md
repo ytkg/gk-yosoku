@@ -690,8 +690,13 @@ make full FROM=2025-01-01 TO=2026-02-25 TRAIN_TO=2026-01-31 SLEEP=0.2
 - `WEIGHT_MODE`（既定: `none`、`none` or `time_decay`）
 - `DECAY_HALF_LIFE_DAYS`（既定: `120`、`time_decay` の半減期）
 - `MIN_SAMPLE_WEIGHT`（既定: `0.2`、`time_decay` の最小重み）
+- `TOP3_FEATURE_SET` / `TOP1_FEATURE_SET`（既定: `full`、`noplayer` 指定時は `player_name` を除外）
 
 半減期の直近比較（`data/ml_cv_hl60|90|120|180/cv_summary.json`, 2026-03-05 集計）では、`winner_hit_rate` は `120` が最高でした（`hl120=0.6786`, `hl90=0.6773`, `hl60=0.6740`, `hl180=0.6728`）。
+特徴量セット分岐の直近比較（2026-03-05集計）:
+- `top3`: `data/ml/eval_summary.json`（full）が `data/ml_noplayer/tuning_v2/trial_024/eval_summary.json` より高指標
+- `top1`: `data/ml_top1/tuning_v2/trial_029/eval_summary.json` と `data/ml_top1_noplayer/tuning_v2/trial_025/eval_summary.json` は `winner_hit_rate` 同率、`auc` は full が優位
+- 採用方針: `TOP3_FEATURE_SET=full` / `TOP1_FEATURE_SET=full`
 - `TOP3_TRAIN_OPTS` / `TOP1_TRAIN_OPTS`（各学習ターゲット固有の追加オプション）
 - `TOP3_EVAL_OPTS` / `TOP1_EVAL_OPTS`（各評価ターゲット固有の追加オプション）
 - `EXACTA_TRAIN_OPTS` / `EXACTA_EVAL_OPTS`（exacta専用モデルの追加オプション）

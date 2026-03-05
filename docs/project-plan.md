@@ -107,6 +107,8 @@ make full FROM=2025-01-01 TO=2026-02-25 TRAIN_TO=2026-01-31 SLEEP=0.2
   既定: `$(PROFILE_MART_DIR)/train.parquet`
 - `TUNE_DUCKDB_OPTS`  
   既定: `--train-parquet $(TUNE_TRAIN_PARQUET) --valid-parquet $(TUNE_VALID_PARQUET) $(DUCKDB_DB_OPTS)`
+- `TOP3_FEATURE_SET` / `TOP1_FEATURE_SET`  
+  既定: `full`（`noplayer` 指定時は `player_name` を除外）
 
 上書き例:
 
@@ -256,6 +258,12 @@ make cv-top1 FROM=2025-01-01 TO=2026-02-25 \
 - 比較対象: `data/ml_cv_hl60`, `data/ml_cv_hl90`, `data/ml_cv_hl120`, `data/ml_cv_hl180`
 - `winner_hit_rate` 平均: `hl120=0.6786`, `hl90=0.6773`, `hl60=0.6740`, `hl180=0.6728`
 - 決定: 既定値は `DECAY_HALF_LIFE_DAYS=120` を維持
+
+### top1/top3 特徴量セット分岐の比較結果（2026-03-05）
+
+- `top3`: `data/ml/eval_summary.json`（full）が `data/ml_noplayer/tuning_v2/trial_024/eval_summary.json` より高指標
+- `top1`: `data/ml_top1/tuning_v2/trial_029/eval_summary.json` と `data/ml_top1_noplayer/tuning_v2/trial_025/eval_summary.json` は `winner_hit_rate` 同率、`auc` は full が優位
+- 決定: 既定値は `TOP3_FEATURE_SET=full` / `TOP1_FEATURE_SET=full`
 
 ## 既知の方針
 

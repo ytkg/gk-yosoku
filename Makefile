@@ -18,6 +18,8 @@ TOP3_TRAIN_OPTS ?=
 TOP1_TRAIN_OPTS ?=
 TOP3_EVAL_OPTS ?=
 TOP1_EVAL_OPTS ?=
+TOP3_FEATURE_SET ?= full
+TOP1_FEATURE_SET ?= full
 EXACTA_TRAIN_OPTS ?=
 EXACTA_EVAL_OPTS ?=
 CV_OPTS ?=
@@ -54,6 +56,8 @@ TUNE_DUCKDB_OPTS ?= --train-parquet $(TUNE_TRAIN_PARQUET) --valid-parquet $(TUNE
 CV_DUCKDB_OPTS ?= $(DUCKDB_FEATURE_OPTS)
 HALF_LIFE_GRID ?= 60,90,120,180
 HALF_LIFE_CV_OUT_DIR ?= data/ml_cv_half_life
+TOP3_FEATURE_OPTS := $(if $(filter noplayer,$(TOP3_FEATURE_SET)),--drop-features player_name,)
+TOP1_FEATURE_OPTS := $(if $(filter noplayer,$(TOP1_FEATURE_SET)),--drop-features player_name,)
 
 DOCKER_RUN = docker run --rm -v "$$PWD:/app" -w /app $(IMAGE)
 DOCKER_RUN_API = docker run --rm -p 4567:4567 -v "$$PWD:/app" -w /app $(IMAGE)
@@ -307,14 +311,14 @@ features-exacta:
 		--out-dir data/ml_exacta
 
 train:
-	$(DOCKER_RUN) ruby scripts/train_lightgbm.rb --target-col top3 --weight-mode $(WEIGHT_MODE) --decay-half-life-days $(DECAY_HALF_LIFE_DAYS) --min-sample-weight $(MIN_SAMPLE_WEIGHT) $(TRAIN_DUCKDB_OPTS) $(TOP3_TRAIN_OPTS)
+	$(DOCKER_RUN) ruby scripts/train_lightgbm.rb --target-col top3 --weight-mode $(WEIGHT_MODE) --decay-half-life-days $(DECAY_HALF_LIFE_DAYS) --min-sample-weight $(MIN_SAMPLE_WEIGHT) $(TOP3_FEATURE_OPTS) $(TRAIN_DUCKDB_OPTS) $(TOP3_TRAIN_OPTS)
 
 eval:
 	@echo "[deprecated] make eval now delegates to eval-duckdb"
 	$(MAKE) eval-duckdb FROM=$(FROM) TO=$(TO) LAKE_DIR=$(LAKE_DIR) PARQUET_DB=$(PARQUET_DB) EVAL_DUCKDB_OPTS="$(TOP3_EVAL_OPTS)" EVAL_MODEL=data/ml/model.txt EVAL_ENCODERS=data/ml/encoders.json EVAL_OUT_DIR=data/ml EVAL_TARGET_COL=top3
 
 train-top1:
-	$(DOCKER_RUN) ruby scripts/train_lightgbm.rb --target-col top1 --out-dir data/ml_top1 --weight-mode $(WEIGHT_MODE) --decay-half-life-days $(DECAY_HALF_LIFE_DAYS) --min-sample-weight $(MIN_SAMPLE_WEIGHT) $(TRAIN_DUCKDB_OPTS) $(TOP1_TRAIN_OPTS)
+	$(DOCKER_RUN) ruby scripts/train_lightgbm.rb --target-col top1 --out-dir data/ml_top1 --weight-mode $(WEIGHT_MODE) --decay-half-life-days $(DECAY_HALF_LIFE_DAYS) --min-sample-weight $(MIN_SAMPLE_WEIGHT) $(TOP1_FEATURE_OPTS) $(TRAIN_DUCKDB_OPTS) $(TOP1_TRAIN_OPTS)
 
 eval-top1:
 	$(MAKE) eval-duckdb FROM=$(FROM) TO=$(TO) LAKE_DIR=$(LAKE_DIR) PARQUET_DB=$(PARQUET_DB) EVAL_MODEL=data/ml_top1/model.txt EVAL_ENCODERS=data/ml_top1/encoders.json EVAL_OUT_DIR=data/ml_top1 EVAL_TARGET_COL=top1 EVAL_DUCKDB_OPTS="$(TOP1_EVAL_OPTS)"
@@ -334,13 +338,13 @@ eval-dual:
 	$(MAKE) eval-top1
 
 train-weakodds:
-	$(DOCKER_RUN) ruby scripts/train_lightgbm.rb --target-col top3 --drop-features $(WEAK_DROP) --out-dir data/ml_weakodds --weight-mode $(WEIGHT_MODE) --decay-half-life-days $(DECAY_HALF_LIFE_DAYS) --min-sample-weight $(MIN_SAMPLE_WEIGHT) $(TRAIN_DUCKDB_OPTS) $(TOP3_TRAIN_OPTS)
+	$(DOCKER_RUN) ruby scripts/train_lightgbm.rb --target-col top3 --drop-features $(WEAK_DROP) --out-dir data/ml_weakodds --weight-mode $(WEIGHT_MODE) --decay-half-life-days $(DECAY_HALF_LIFE_DAYS) --min-sample-weight $(MIN_SAMPLE_WEIGHT) $(TOP3_FEATURE_OPTS) $(TRAIN_DUCKDB_OPTS) $(TOP3_TRAIN_OPTS)
 
 eval-weakodds:
 	$(MAKE) eval-duckdb FROM=$(FROM) TO=$(TO) LAKE_DIR=$(LAKE_DIR) PARQUET_DB=$(PARQUET_DB) EVAL_MODEL=data/ml_weakodds/model.txt EVAL_ENCODERS=data/ml_weakodds/encoders.json EVAL_OUT_DIR=data/ml_weakodds EVAL_TARGET_COL=top3
 
 train-top1-weakodds:
-	$(DOCKER_RUN) ruby scripts/train_lightgbm.rb --target-col top1 --drop-features $(WEAK_DROP) --out-dir data/ml_top1_weakodds --weight-mode $(WEIGHT_MODE) --decay-half-life-days $(DECAY_HALF_LIFE_DAYS) --min-sample-weight $(MIN_SAMPLE_WEIGHT) $(TRAIN_DUCKDB_OPTS) $(TOP1_TRAIN_OPTS)
+	$(DOCKER_RUN) ruby scripts/train_lightgbm.rb --target-col top1 --drop-features $(WEAK_DROP) --out-dir data/ml_top1_weakodds --weight-mode $(WEIGHT_MODE) --decay-half-life-days $(DECAY_HALF_LIFE_DAYS) --min-sample-weight $(MIN_SAMPLE_WEIGHT) $(TOP1_FEATURE_OPTS) $(TRAIN_DUCKDB_OPTS) $(TOP1_TRAIN_OPTS)
 
 eval-top1-weakodds:
 	$(MAKE) eval-duckdb FROM=$(FROM) TO=$(TO) LAKE_DIR=$(LAKE_DIR) PARQUET_DB=$(PARQUET_DB) EVAL_MODEL=data/ml_top1_weakodds/model.txt EVAL_ENCODERS=data/ml_top1_weakodds/encoders.json EVAL_OUT_DIR=data/ml_top1_weakodds EVAL_TARGET_COL=top1
@@ -378,28 +382,28 @@ optimize-exotic-hitk:
 	$(DOCKER_RUN) ruby scripts/evaluate_exotics.rb --out $(EXOTIC_OPT_EVAL_OUT)
 
 tune:
-	$(DOCKER_RUN) ruby scripts/tune_lightgbm.rb --weight-mode $(WEIGHT_MODE) --decay-half-life-days $(DECAY_HALF_LIFE_DAYS) --min-sample-weight $(MIN_SAMPLE_WEIGHT) $(TUNE_DUCKDB_OPTS) $(TUNE_OPTS)
+	$(DOCKER_RUN) ruby scripts/tune_lightgbm.rb --weight-mode $(WEIGHT_MODE) --decay-half-life-days $(DECAY_HALF_LIFE_DAYS) --min-sample-weight $(MIN_SAMPLE_WEIGHT) $(TOP3_FEATURE_OPTS) $(TUNE_DUCKDB_OPTS) $(TUNE_OPTS)
 
 tune-top3:
-	$(DOCKER_RUN) ruby scripts/tune_lightgbm.rb --target-col top3 --out-dir data/ml/tuning_top3 --sort-metric top3_exact_match_rate --weight-mode $(WEIGHT_MODE) --decay-half-life-days $(DECAY_HALF_LIFE_DAYS) --min-sample-weight $(MIN_SAMPLE_WEIGHT) $(TUNE_DUCKDB_OPTS) $(TUNE_OPTS)
+	$(DOCKER_RUN) ruby scripts/tune_lightgbm.rb --target-col top3 --out-dir data/ml/tuning_top3 --sort-metric top3_exact_match_rate --weight-mode $(WEIGHT_MODE) --decay-half-life-days $(DECAY_HALF_LIFE_DAYS) --min-sample-weight $(MIN_SAMPLE_WEIGHT) $(TOP3_FEATURE_OPTS) $(TUNE_DUCKDB_OPTS) $(TUNE_OPTS)
 
 tune-top1:
-	$(DOCKER_RUN) ruby scripts/tune_lightgbm.rb --target-col top1 --out-dir data/ml_top1/tuning --sort-metric winner_hit_rate --weight-mode $(WEIGHT_MODE) --decay-half-life-days $(DECAY_HALF_LIFE_DAYS) --min-sample-weight $(MIN_SAMPLE_WEIGHT) $(TUNE_DUCKDB_OPTS) $(TUNE_OPTS)
+	$(DOCKER_RUN) ruby scripts/tune_lightgbm.rb --target-col top1 --out-dir data/ml_top1/tuning --sort-metric winner_hit_rate --weight-mode $(WEIGHT_MODE) --decay-half-life-days $(DECAY_HALF_LIFE_DAYS) --min-sample-weight $(MIN_SAMPLE_WEIGHT) $(TOP1_FEATURE_OPTS) $(TUNE_DUCKDB_OPTS) $(TUNE_OPTS)
 
 tune-top3-noplayer:
 	$(DOCKER_RUN) ruby scripts/tune_lightgbm.rb --target-col top3 --drop-features player_name --out-dir data/ml_noplayer/tuning --sort-metric top3_exact_match_rate --weight-mode $(WEIGHT_MODE) --decay-half-life-days $(DECAY_HALF_LIFE_DAYS) --min-sample-weight $(MIN_SAMPLE_WEIGHT) $(TUNE_DUCKDB_OPTS) $(TUNE_OPTS)
 
 tune-weakodds:
-	$(DOCKER_RUN) ruby scripts/tune_lightgbm.rb --target-col top3 --drop-features $(WEAK_DROP) --out-dir data/ml_weakodds/tuning --sort-metric top3_exact_match_rate --weight-mode $(WEIGHT_MODE) --decay-half-life-days $(DECAY_HALF_LIFE_DAYS) --min-sample-weight $(MIN_SAMPLE_WEIGHT) $(TUNE_DUCKDB_OPTS) $(TUNE_OPTS)
+	$(DOCKER_RUN) ruby scripts/tune_lightgbm.rb --target-col top3 --drop-features $(WEAK_DROP) --out-dir data/ml_weakodds/tuning --sort-metric top3_exact_match_rate --weight-mode $(WEIGHT_MODE) --decay-half-life-days $(DECAY_HALF_LIFE_DAYS) --min-sample-weight $(MIN_SAMPLE_WEIGHT) $(TOP3_FEATURE_OPTS) $(TUNE_DUCKDB_OPTS) $(TUNE_OPTS)
 
 tune-top1-weakodds:
-	$(DOCKER_RUN) ruby scripts/tune_lightgbm.rb --target-col top1 --drop-features $(WEAK_DROP) --out-dir data/ml_top1_weakodds/tuning --sort-metric winner_hit_rate --weight-mode $(WEIGHT_MODE) --decay-half-life-days $(DECAY_HALF_LIFE_DAYS) --min-sample-weight $(MIN_SAMPLE_WEIGHT) $(TUNE_DUCKDB_OPTS) $(TUNE_OPTS)
+	$(DOCKER_RUN) ruby scripts/tune_lightgbm.rb --target-col top1 --drop-features $(WEAK_DROP) --out-dir data/ml_top1_weakodds/tuning --sort-metric winner_hit_rate --weight-mode $(WEIGHT_MODE) --decay-half-life-days $(DECAY_HALF_LIFE_DAYS) --min-sample-weight $(MIN_SAMPLE_WEIGHT) $(TOP1_FEATURE_OPTS) $(TUNE_DUCKDB_OPTS) $(TUNE_OPTS)
 
 cv:
-	$(DOCKER_RUN) ruby scripts/run_timeseries_cv.rb --target-col top3 --weight-mode $(WEIGHT_MODE) --decay-half-life-days $(DECAY_HALF_LIFE_DAYS) --min-sample-weight $(MIN_SAMPLE_WEIGHT) $(CV_DUCKDB_OPTS) $(CV_OPTS)
+	$(DOCKER_RUN) ruby scripts/run_timeseries_cv.rb --target-col top3 --weight-mode $(WEIGHT_MODE) --decay-half-life-days $(DECAY_HALF_LIFE_DAYS) --min-sample-weight $(MIN_SAMPLE_WEIGHT) $(TOP3_FEATURE_OPTS) $(CV_DUCKDB_OPTS) $(CV_OPTS)
 
 cv-top1:
-	$(DOCKER_RUN) ruby scripts/run_timeseries_cv.rb --target-col top1 --out-dir data/ml_cv_top1 --weight-mode $(WEIGHT_MODE) --decay-half-life-days $(DECAY_HALF_LIFE_DAYS) --min-sample-weight $(MIN_SAMPLE_WEIGHT) $(CV_DUCKDB_OPTS) $(CV_OPTS)
+	$(DOCKER_RUN) ruby scripts/run_timeseries_cv.rb --target-col top1 --out-dir data/ml_cv_top1 --weight-mode $(WEIGHT_MODE) --decay-half-life-days $(DECAY_HALF_LIFE_DAYS) --min-sample-weight $(MIN_SAMPLE_WEIGHT) $(TOP1_FEATURE_OPTS) $(CV_DUCKDB_OPTS) $(CV_OPTS)
 
 cv-half-life-grid:
 	$(DOCKER_RUN) ruby scripts/compare_time_decay_half_life.rb --from-date $(FROM) --to-date $(TO) --half-lives $(HALF_LIFE_GRID) --target-col top3 --out-dir $(HALF_LIFE_CV_OUT_DIR) --min-sample-weight $(MIN_SAMPLE_WEIGHT) $(CV_DUCKDB_OPTS) $(HALF_LIFE_OPTS)
