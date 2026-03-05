@@ -46,6 +46,7 @@ exacta専用モデルを使う場合:
 ```bash
 make build
 make help
+make issue-cycle
 ```
 
 ## CIチェック（PR時）
