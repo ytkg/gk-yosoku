@@ -83,6 +83,17 @@ make train-exacta
 make eval-exacta-model
 ```
 
+noplayer 実行例:
+
+```bash
+make train-top3-noplayer
+make train-top1-noplayer
+make cv-top3-noplayer FROM=2025-01-01 TO=2026-02-25 \
+  CV_OPTS="--from-date 2025-01-01 --to-date 2026-02-25 --train-days 180 --valid-days 28 --step-days 28"
+make cv-top1-noplayer FROM=2025-01-01 TO=2026-02-25 \
+  CV_OPTS="--from-date 2025-01-01 --to-date 2026-02-25 --train-days 180 --valid-days 28 --step-days 28"
+```
+
 一括実行（取得含む）:
 
 ```bash
