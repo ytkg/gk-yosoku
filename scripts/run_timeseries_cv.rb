@@ -69,6 +69,7 @@ class TimeSeriesCVRunner
       warn(
         "fold=#{fold_id} train=#{row['train_from']}..#{row['train_to']} " \
         "valid=#{row['valid_from']}..#{row['valid_to']} " \
+        "input_mode(train=#{row['train_input_mode']},eval=#{row['eval_input_mode']}) " \
         "auc=#{format('%.6f', row['auc'])} winner_hit_rate=#{format('%.6f', row['winner_hit_rate'])}"
       )
     end
