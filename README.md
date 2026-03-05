@@ -438,6 +438,12 @@ make tune-top1 TUNE_OPTS="--num-iterations 600 --learning-rates 0.02,0.03,0.05 -
 make tune-top3-noplayer TUNE_OPTS="--num-iterations 600 --learning-rates 0.02,0.03,0.05 --num-leaves 15,31,63 --min-data-in-leaf 10,20,40"
 ```
 
+`top1` の `player_name` なしチューニング（`winner_hit_rate` 基準）:
+
+```bash
+make tune-top1 TOP1_FEATURE_SET=noplayer TUNE_OPTS="--num-iterations 600 --learning-rates 0.02,0.03,0.05 --num-leaves 15,31,63 --min-data-in-leaf 10,20,40"
+```
+
 オッズ弱依存チューニング（top3/top1）:
 
 ```bash
