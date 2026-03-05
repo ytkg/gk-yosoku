@@ -80,6 +80,7 @@ make predict RACE_URL="https://keirin.kdreams.jp/toride/racedetail/2320260225030
 API経由ではなく、CLI単体で予測結果を確認したい場合に使います。
 
 詳細は「主要コマンド（Makefile前提）」を参照してください。
+失敗時は `docs/api/troubleshooting.md` を先に確認してください。
 
 ## CIチェック（PR時）
 
