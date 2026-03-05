@@ -207,7 +207,8 @@ make cv-top1 FROM=2025-01-01 TO=2026-02-25 \
 
 ## 次の改善候補
 
-1. `top1` と `top3` で特徴量セットを分岐最適化
-2. time-decayの半減期探索（CV平均で決定）
-3. 追加特徴量（ライン/直前気配）検討
-4. エキゾチック指標（exacta/trifecta hit@k）を直接最適化する探索
+1. [P1] `split-duckdb` から `train.csv` / `valid.csv` 依存を段階縮退し、学習器入力のParquet直接化を設計する
+2. [P1] `evaluate_lightgbm_duckdb` / `tune_lightgbm` / `run_timeseries_cv` の共通オプションを整理し、実行インターフェースを統一する
+3. [P2] time-decay の半減期をCV平均で探索し、既定値を再設定する
+4. [P2] `top1` と `top3` の特徴量セット分岐最適化（モデル目的に合わせた削減/追加）
+5. [P2] エキゾチック指標（exacta/trifecta hit@k）を直接最適化する探索ジョブを整備する
