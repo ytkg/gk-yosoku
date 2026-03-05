@@ -72,7 +72,7 @@ include .env
 export
 endif
 
-.PHONY: help issue-cycle build api-start api-start-bg api-stop api-logs api-health api-predict api-predict-timeout-check api-smoke api-cli-parity manifest-inspect collect parquet-bootstrap features features-duckdb features-duckdb-sql split split-duckdb validate-duckdb eval-duckdb backup-duckdb restore-duckdb features-exacta train eval train-top1 eval-top1 train-exacta eval-exacta-model train-dual eval-dual train-weakodds eval-weakodds train-top1-weakodds eval-top1-weakodds exotic eval-exotic exotic-weakodds eval-exotic-weakodds learn-hit5-profile learn-exacta-profile eval-exacta-profile optimize-exotic-hitk tune tune-top1 tune-top3 tune-top3-noplayer tune-weakodds tune-top1-weakodds cv cv-top1 cv-half-life-grid importance predict predict-exacta predict-balanced predict-trifecta predict-hit5 predict-hit5-profile predict-tri5 predict-weakodds test test-duckdb pipeline full
+.PHONY: help issue-cycle build api-start api-start-bg api-stop api-logs api-health api-predict api-predict-timeout-check api-smoke api-cli-parity manifest-inspect collect parquet-bootstrap features features-duckdb features-duckdb-sql split split-duckdb validate-duckdb eval-duckdb backup-duckdb restore-duckdb features-exacta train eval train-top1 eval-top1 train-exacta eval-exacta-model train-dual eval-dual train-weakodds eval-weakodds train-top1-weakodds eval-top1-weakodds exotic eval-exotic exotic-weakodds eval-exotic-weakodds learn-hit5-profile learn-exacta-profile eval-exacta-profile optimize-exotic-hitk tune tune-top1 tune-top1-noplayer tune-top3 tune-top3-noplayer tune-weakodds tune-top1-weakodds cv cv-top1 cv-half-life-grid importance predict predict-exacta predict-balanced predict-trifecta predict-hit5 predict-hit5-profile predict-tri5 predict-weakodds test test-duckdb pipeline full
 
 help:
 	@echo "Targets:"
@@ -122,6 +122,7 @@ help:
 	@echo "  make tune FROM=YYYY-MM-DD TO=YYYY-MM-DD TRAIN_TO=YYYY-MM-DD TUNE_OPTS='--num-iterations 400 --learning-rates 0.03,0.05'"
 	@echo "  make tune-top3 FROM=YYYY-MM-DD TO=YYYY-MM-DD TRAIN_TO=YYYY-MM-DD TUNE_OPTS='--learning-rates 0.03,0.05 --num-leaves 15,31,63'"
 	@echo "  make tune-top1 FROM=YYYY-MM-DD TO=YYYY-MM-DD TRAIN_TO=YYYY-MM-DD TOP1_FEATURE_SET=noplayer TUNE_OPTS='--learning-rates 0.03,0.05'"
+	@echo "  make tune-top1-noplayer FROM=YYYY-MM-DD TO=YYYY-MM-DD TRAIN_TO=YYYY-MM-DD TUNE_OPTS='--learning-rates 0.03,0.05 --num-leaves 15,31,63'"
 	@echo "  make tune-top3-noplayer FROM=YYYY-MM-DD TO=YYYY-MM-DD TRAIN_TO=YYYY-MM-DD TUNE_OPTS='--learning-rates 0.03,0.05 --num-leaves 15,31,63'"
 	@echo "  make tune-weakodds FROM=YYYY-MM-DD TO=YYYY-MM-DD TRAIN_TO=YYYY-MM-DD WEAK_DROP='odds_2shatan_min_first'"
 	@echo "  make tune-top1-weakodds FROM=YYYY-MM-DD TO=YYYY-MM-DD TRAIN_TO=YYYY-MM-DD WEAK_DROP='odds_2shatan_min_first'"
@@ -390,6 +391,9 @@ tune-top3:
 
 tune-top1:
 	$(DOCKER_RUN) ruby scripts/tune_lightgbm.rb --target-col top1 --out-dir data/ml_top1/tuning --sort-metric winner_hit_rate --weight-mode $(WEIGHT_MODE) --decay-half-life-days $(DECAY_HALF_LIFE_DAYS) --min-sample-weight $(MIN_SAMPLE_WEIGHT) $(TOP1_FEATURE_OPTS) $(TUNE_DUCKDB_OPTS) $(TUNE_OPTS)
+
+tune-top1-noplayer:
+	$(MAKE) tune-top1 TOP1_FEATURE_SET=noplayer TUNE_OPTS="$(TUNE_OPTS)"
 
 tune-top3-noplayer:
 	$(DOCKER_RUN) ruby scripts/tune_lightgbm.rb --target-col top3 --drop-features player_name --out-dir data/ml_noplayer/tuning --sort-metric top3_exact_match_rate --weight-mode $(WEIGHT_MODE) --decay-half-life-days $(DECAY_HALF_LIFE_DAYS) --min-sample-weight $(MIN_SAMPLE_WEIGHT) $(TUNE_DUCKDB_OPTS) $(TUNE_OPTS)
