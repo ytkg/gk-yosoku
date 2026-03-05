@@ -71,6 +71,14 @@ make api-start
 make api-predict PAYLOAD=docs/api/request-examples/predict-basic.json
 ```
 
+3. 学習済みモデルでCLI予測だけ試すルート
+
+```bash
+make predict RACE_URL="https://keirin.kdreams.jp/toride/racedetail/2320260225030004/"
+```
+
+API経由ではなく、CLI単体で予測結果を確認したい場合に使います。
+
 詳細は「主要コマンド（Makefile前提）」を参照してください。
 
 ## CIチェック（PR時）
