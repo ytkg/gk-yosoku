@@ -405,6 +405,9 @@ make eval-weakodds FROM=2026-02-01 TO=2026-02-25
 make eval-top1-weakodds FROM=2026-02-01 TO=2026-02-25
 ```
 
+補足:
+- `evaluate_lightgbm.rb` は `--valid-parquet` が標準で、`--valid-csv` は後方互換用途です（valid入力は csv/parquet のどちらか必須）。
+
 ### 5.1 2連単専用モデル（exacta直接学習）
 
 ```bash

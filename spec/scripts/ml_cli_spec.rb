@@ -332,6 +332,29 @@ RSpec.describe "train/eval/tune/run_timeseries_cv" do
     end
   end
 
+  it "evaluate_lightgbm.rb: valid未指定はエラーになる" do
+    Dir.mktmpdir("spec-eval-no-input-") do |tmp|
+      bin_dir = File.join(tmp, "bin")
+      create_fake_lightgbm(bin_dir)
+      env = { "PATH" => "#{bin_dir}:#{ENV.fetch('PATH', '')}" }
+
+      out_dir = File.join(tmp, "ml")
+      FileUtils.mkdir_p(out_dir)
+      File.write(File.join(out_dir, "model.txt"), "dummy")
+      File.write(File.join(out_dir, "encoders.json"), "{}")
+
+      _out, err, st = run_cmd(
+        "ruby", "scripts/evaluate_lightgbm.rb",
+        "--model", File.join(out_dir, "model.txt"),
+        "--encoders", File.join(out_dir, "encoders.json"),
+        "--out-dir", out_dir,
+        env: env
+      )
+      expect(st.success?).to be(false)
+      expect(err).to include("valid-csv or valid-parquet is required")
+    end
+  end
+
   it "run_timeseries_cv.rbで複数foldの時系列CVを実行できる" do
     Dir.mktmpdir("spec-cv-") do |tmp|
       bin_dir = File.join(tmp, "bin")
