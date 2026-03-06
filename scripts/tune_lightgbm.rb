@@ -32,6 +32,7 @@ class LightGBMTuner
   end
 
   def run
+    validate_input_options!
     results = []
     trial = 0
 
@@ -80,6 +81,20 @@ class LightGBMTuner
   end
 
   private
+
+  def validate_input_options!
+    train_parquet_present = !(@train_parquet.nil? || @train_parquet.empty?)
+    valid_parquet_present = !(@valid_parquet.nil? || @valid_parquet.empty?)
+    train_csv_present = !(@train_csv.nil? || @train_csv.empty?)
+    valid_csv_present = !(@valid_csv.nil? || @valid_csv.empty?)
+
+    if train_parquet_present && !valid_parquet_present
+      raise "valid-parquet is required when train-parquet is set"
+    end
+
+    warn "train-csv is ignored because train-parquet is set" if train_parquet_present && train_csv_present
+    warn "valid-csv is ignored because valid-parquet is set" if valid_parquet_present && valid_csv_present
+  end
 
   def train!(trial_dir, lr, leaves, min_leaf)
     cmd = [
@@ -160,6 +175,7 @@ class LightGBMTuner
   def train_input_mode
     return "parquet" unless @train_parquet.nil? || @train_parquet.empty?
 
+    warn "train_input_mode=csv (compatibility)" if !@train_csv.nil? && !@train_csv.empty?
     "csv"
   end
 end
@@ -186,10 +202,10 @@ options = {
 
 parser = OptionParser.new do |opts|
   opts.banner = "Usage: ruby scripts/tune_lightgbm.rb [options]"
-  opts.on("--train-csv PATH", "train.csv path") { |v| options[:train_csv] = v }
-  opts.on("--valid-csv PATH", "valid.csv path") { |v| options[:valid_csv] = v }
-  opts.on("--train-parquet PATH", "train parquet path (optional)") { |v| options[:train_parquet] = v }
-  opts.on("--valid-parquet PATH", "valid parquet path (optional)") { |v| options[:valid_parquet] = v }
+  opts.on("--train-csv PATH", "train.csv path (compatibility mode)") { |v| options[:train_csv] = v }
+  opts.on("--valid-csv PATH", "valid.csv path (compatibility mode)") { |v| options[:valid_csv] = v }
+  opts.on("--train-parquet PATH", "train parquet path (recommended)") { |v| options[:train_parquet] = v }
+  opts.on("--valid-parquet PATH", "valid parquet path (recommended)") { |v| options[:valid_parquet] = v }
   opts.on("--db-path PATH", "DuckDB DBファイル (valid-parquet利用時)") { |v| options[:db_path] = v }
   opts.on("--out-dir DIR", "tuning output dir") { |v| options[:out_dir] = v }
   opts.on("--num-iterations N", Integer, "boosting rounds for each trial") { |v| options[:num_iterations] = v }

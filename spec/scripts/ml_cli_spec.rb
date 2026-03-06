@@ -221,6 +221,71 @@ RSpec.describe "train/eval/tune/run_timeseries_cv" do
     end
   end
 
+  it "tune_lightgbm.rb: train-parquetのみ指定はエラーになる" do
+    Dir.mktmpdir("spec-tune-parquet-invalid-") do |tmp|
+      bin_dir = File.join(tmp, "bin")
+      create_fake_lightgbm(bin_dir)
+      create_fake_duckdb(bin_dir)
+      env = { "PATH" => "#{bin_dir}:#{ENV.fetch('PATH', '')}" }
+
+      train_parquet = File.join(tmp, "train.parquet")
+      File.write(train_parquet, "fake parquet")
+      out_dir = File.join(tmp, "tuning")
+      _out, err, st = run_cmd(
+        "ruby", "scripts/tune_lightgbm.rb",
+        "--train-parquet", train_parquet,
+        "--out-dir", out_dir,
+        "--num-iterations", "5",
+        "--learning-rates", "0.03",
+        "--num-leaves", "31",
+        "--min-data-in-leaf", "20",
+        env: env
+      )
+      expect(st.success?).to be(false)
+      expect(err).to include("valid-parquet is required when train-parquet is set")
+    end
+  end
+
+  it "tune_lightgbm.rb: parquet指定時はcsv指定よりparquetを優先する" do
+    Dir.mktmpdir("spec-tune-parquet-priority-") do |tmp|
+      bin_dir = File.join(tmp, "bin")
+      create_fake_lightgbm(bin_dir)
+      create_fake_duckdb(bin_dir)
+      env = { "PATH" => "#{bin_dir}:#{ENV.fetch('PATH', '')}" }
+
+      train_csv = File.join(tmp, "train.csv")
+      valid_csv = File.join(tmp, "valid.csv")
+      train_rows = sample_feature_rows(date: "2026-02-25", race_id: "2026-02-25-toride-01")
+      valid_rows = sample_feature_rows(date: "2026-02-26", race_id: "2026-02-26-toride-01")
+      write_csv(train_csv, feature_headers, train_rows)
+      write_csv(valid_csv, feature_headers, valid_rows)
+
+      train_parquet = File.join(tmp, "train.parquet")
+      valid_parquet = File.join(tmp, "valid.parquet")
+      File.write(train_parquet, "fake parquet")
+      File.write(valid_parquet, "fake parquet")
+
+      out_dir = File.join(tmp, "tuning")
+      _out, err, st = run_cmd(
+        "ruby", "scripts/tune_lightgbm.rb",
+        "--train-csv", train_csv,
+        "--valid-csv", valid_csv,
+        "--train-parquet", train_parquet,
+        "--valid-parquet", valid_parquet,
+        "--db-path", File.join(tmp, "duckdb", "gk_yosoku.duckdb"),
+        "--out-dir", out_dir,
+        "--num-iterations", "5",
+        "--learning-rates", "0.03",
+        "--num-leaves", "31",
+        "--min-data-in-leaf", "20",
+        env: env
+      )
+      expect(st.success?).to be(true), err
+      expect(err).to include("train-csv is ignored because train-parquet is set")
+      expect(err).to include("valid-csv is ignored because valid-parquet is set")
+    end
+  end
+
   it "evaluate_lightgbm.rb: valid-parquet指定でも評価できる" do
     Dir.mktmpdir("spec-eval-parquet-") do |tmp|
       bin_dir = File.join(tmp, "bin")

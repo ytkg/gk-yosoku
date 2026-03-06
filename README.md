@@ -431,6 +431,7 @@ make tune
 ```
 
 既定では `TUNE_VALID_PARQUET=data/marts/train_valid/split_id=$(PROFILE_SPLIT_ID)/valid.parquet` を使います。
+tune 実行は `--train-parquet` / `--valid-parquet` 経路が標準で、CSV入力は互換用途です。
 別の split を使う場合:
 
 ```bash
