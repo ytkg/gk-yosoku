@@ -24,11 +24,15 @@ EXACTA_TRAIN_OPTS ?=
 EXACTA_EVAL_OPTS ?=
 CV_OPTS ?=
 HALF_LIFE_OPTS ?=
+
+# DuckDB / Parquet base
 LAKE_DIR ?= data/lake
 PARQUET_DB ?= data/duckdb/gk_yosoku.duckdb
 FEATURE_SET_VERSION ?= v1
 DUCKDB_DB_OPTS ?= --db-path $(PARQUET_DB)
 DUCKDB_FEATURE_OPTS ?= --lake-dir $(LAKE_DIR) --feature-set-version $(FEATURE_SET_VERSION) $(DUCKDB_DB_OPTS)
+
+# eval-duckdb args
 EVAL_DUCKDB_OPTS ?=
 EVAL_DUCKDB_MODEL ?= data/ml/model.txt
 EVAL_DUCKDB_ENCODERS ?= data/ml/encoders.json
@@ -40,6 +44,8 @@ EVAL_MODEL ?= $(EVAL_DUCKDB_MODEL)
 EVAL_ENCODERS ?= $(EVAL_DUCKDB_ENCODERS)
 EVAL_OUT_DIR ?= $(EVAL_DUCKDB_OUT_DIR)
 EVAL_TARGET_COL ?= $(EVAL_DUCKDB_TARGET_COL)
+
+# split/train/tune/cv inputs
 DUCKDB_BACKUP_DIR ?= data/duckdb_backup
 HIT5_PROFILE ?= data/ml/exotic_profile_hit5.json
 HIT5_LEARN_OPTS ?=
