@@ -57,6 +57,7 @@
 7. exotics閾値（`EXOTIC_TOPS`）や温度関連パラメータを更新した場合は `make optimize-exotic-hitk` を実行する
 8. 親Issue #32 の進捗欄・次候補欄を更新する
 9. `gh issue list --state open` で open issue を確認する
+10. 親Issue更新は `make issue-cycle-report` の自動コメントを優先する
 
 ## 次候補更新ルール（簡易）
 
@@ -320,7 +321,7 @@ make cv-top1 FROM=2025-01-01 TO=2026-02-25 \
 
 ## 次の改善候補
 
-1. [P2] #192 [改善] docs/project-plan の次候補を issue 番号連動で自動整形する
+1. [P2] #195 [改善] issue-cycle 実行ログを親Issueへ自動コメントする補助スクリプトを追加する
 2. [P1] `evaluate_lightgbm_duckdb` / `tune_lightgbm` / `run_timeseries_cv` の共通オプションを整理し、実行インターフェースを統一する
 3. [P2] time-decay の半減期をCV平均で探索し、既定値を再設定する
 4. [P2] `top1` と `top3` の特徴量セット分岐最適化（モデル目的に合わせた削減/追加）
