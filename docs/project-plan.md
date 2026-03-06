@@ -65,6 +65,7 @@
 2. 直前の次候補Issueをクローズした直後に、次のIssue番号へ差し替える
 3. 更新時は project-plan の「次の改善候補」と親Issue #32 の記述を同一内容にそろえる
 4. 更新は `make sync-next-issue` を優先し、親Issueと project-plan の次候補先頭を同時同期する
+5. open issue が親Issueのみのときは `make suggest-next-issue` で次の起票候補を確認する
 
 ## パイプライン構成（現行）
 
@@ -321,7 +322,7 @@ make cv-top1 FROM=2025-01-01 TO=2026-02-25 \
 
 ## 次の改善候補
 
-1. [P2] #200 [改善] scripts 配下の parquet materialize ロジックを共通モジュール化する
+1. [P3] #193 [改善] README の Parquet標準ルートを 10行以内クイックレシピ化する
 2. [P1] `evaluate_lightgbm_duckdb` / `tune_lightgbm` / `run_timeseries_cv` の共通オプションを整理し、実行インターフェースを統一する
 3. [P2] time-decay の半減期をCV平均で探索し、既定値を再設定する
 4. [P2] `top1` と `top3` の特徴量セット分岐最適化（モデル目的に合わせた削減/追加）
