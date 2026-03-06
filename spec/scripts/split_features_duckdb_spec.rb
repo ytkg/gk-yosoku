@@ -31,6 +31,8 @@ RSpec.describe "split_features_duckdb.rb" do
       expect(st.success?).to be(true), err
       expect(File).to exist(File.join(out_dir, "train.csv"))
       expect(File).to exist(File.join(out_dir, "valid.csv"))
+      summary = JSON.parse(File.read(File.join(out_dir, "split_summary.json"), encoding: "UTF-8"))
+      expect(summary["emit_csv"]).to eq(true)
       split_dir = File.join(mart_dir, "split_id=20260225_20260226_train_to_20260225")
       expect(File).to exist(File.join(split_dir, "train.parquet"))
       expect(File).to exist(File.join(split_dir, "valid.parquet"))
@@ -66,6 +68,8 @@ RSpec.describe "split_features_duckdb.rb" do
       expect(st.success?).to be(true), err
       expect(File).not_to exist(File.join(out_dir, "train.csv"))
       expect(File).not_to exist(File.join(out_dir, "valid.csv"))
+      summary = JSON.parse(File.read(File.join(out_dir, "split_summary.json"), encoding: "UTF-8"))
+      expect(summary["emit_csv"]).to eq(false)
       split_dir = File.join(mart_dir, "split_id=20260225_20260226_train_to_20260225")
       expect(File).to exist(File.join(split_dir, "train.parquet"))
       expect(File).to exist(File.join(split_dir, "valid.parquet"))

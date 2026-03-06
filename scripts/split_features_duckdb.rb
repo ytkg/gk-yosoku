@@ -3,6 +3,7 @@
 
 require "date"
 require "fileutils"
+require "json"
 require "optparse"
 require_relative "lib/duckdb_runner"
 
@@ -58,6 +59,13 @@ class DuckDBFeatureSplitter
     )
 
     GK::DuckDBRunner.run_sql!(db_path: @db_path, sql: sql)
+    write_summary(
+      split_id: split_id,
+      train_csv: train_csv,
+      valid_csv: valid_csv,
+      train_parquet: train_parquet,
+      valid_parquet: valid_parquet
+    )
     warn "split_id=#{split_id} emit_csv=#{@emit_csv} train_csv=#{train_csv} valid_csv=#{valid_csv}"
     warn "train_parquet=#{train_parquet}"
     warn "valid_parquet=#{valid_parquet}"
@@ -109,6 +117,20 @@ class DuckDBFeatureSplitter
         ORDER BY race_date, venue, CAST(race_number AS INTEGER), CAST(car_number AS INTEGER)
       ) TO '#{csv_path.gsub("'", "''")}' (HEADER, DELIMITER ',');
     SQL
+  end
+
+  def write_summary(split_id:, train_csv:, valid_csv:, train_parquet:, valid_parquet:)
+    summary = {
+      "split_id" => split_id,
+      "emit_csv" => @emit_csv,
+      "outputs" => {
+        "train_csv" => train_csv,
+        "valid_csv" => valid_csv,
+        "train_parquet" => train_parquet,
+        "valid_parquet" => valid_parquet
+      }
+    }
+    File.write(File.join(@out_dir, "split_summary.json"), JSON.pretty_generate(summary))
   end
 end
 
