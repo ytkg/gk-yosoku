@@ -6,7 +6,7 @@ require "fileutils"
 require "json"
 require "open3"
 require "optparse"
-require_relative "lib/duckdb_runner"
+require_relative "lib/parquet_materializer"
 require_relative "lib/feature_schema"
 require_relative "lib/lightgbm_utils"
 require_relative "lib/model_manifest"
@@ -67,18 +67,12 @@ class LightGBMEvaluator
   def resolved_valid_csv
     return @valid_csv if @valid_parquet.nil? || @valid_parquet.empty?
 
-    GK::DuckDBRunner.ensure_duckdb!(message: "duckdb command not found for --valid-parquet")
-    path = File.join(@out_dir, "valid_from_parquet.csv")
-    sql = <<~SQL
-      COPY (
-        SELECT *
-        FROM read_parquet(#{GK::DuckDBRunner.sql_quote(@valid_parquet)})
-      )
-      TO #{GK::DuckDBRunner.sql_quote(path)}
-      (HEADER, DELIMITER ',');
-    SQL
-    GK::DuckDBRunner.run_sql!(db_path: @db_path, sql: sql)
-    path
+    GK::ParquetMaterializer.to_csv!(
+      parquet_path: @valid_parquet,
+      out_csv_path: File.join(@out_dir, "valid_from_parquet.csv"),
+      db_path: @db_path,
+      missing_message: "duckdb command not found for --valid-parquet"
+    )
   end
 
   def write_eval_tsv(path, rows, encoders)

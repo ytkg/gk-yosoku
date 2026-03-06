@@ -4,7 +4,7 @@
 require "csv"
 require "fileutils"
 require "optparse"
-require_relative "lib/duckdb_runner"
+require_relative "lib/parquet_materializer"
 require_relative "lib/exacta_feature_schema"
 
 class ExactaFeatureBuilder
@@ -53,17 +53,11 @@ class ExactaFeatureBuilder
   end
 
   def materialize_parquet_to_csv(parquet_path, out_csv_path)
-    GK::DuckDBRunner.ensure_duckdb!(message: "duckdb command not found for parquet input")
-    sql = <<~SQL
-      COPY (
-        SELECT *
-        FROM read_parquet(#{GK::DuckDBRunner.sql_quote(parquet_path)})
-      )
-      TO #{GK::DuckDBRunner.sql_quote(out_csv_path)}
-      (HEADER, DELIMITER ',');
-    SQL
-    GK::DuckDBRunner.run_sql!(db_path: @db_path, sql: sql)
-    out_csv_path
+    GK::ParquetMaterializer.to_csv!(
+      parquet_path: parquet_path,
+      out_csv_path: out_csv_path,
+      db_path: @db_path
+    )
   end
 
   def build_for_split(in_path, out_path)
