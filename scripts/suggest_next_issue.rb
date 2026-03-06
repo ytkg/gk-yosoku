@@ -24,19 +24,21 @@ end
 
 options = {
   parent_issue: 32,
-  project_plan_path: File.join("docs", "project-plan.md")
+  project_plan_path: File.join("docs", "project-plan.md"),
+  force: false
 }
 
 OptionParser.new do |opts|
   opts.banner = "Usage: ruby scripts/suggest_next_issue.rb [options]"
   opts.on("--parent-issue N", Integer, "親Issue番号 (default: 32)") { |v| options[:parent_issue] = v }
   opts.on("--project-plan-path PATH", "候補抽出元 (default: docs/project-plan.md)") { |v| options[:project_plan_path] = v }
+  opts.on("--force", "子Issueがある場合でも提案を表示する") { options[:force] = true }
 end.parse!
 
 open_lines = run!("gh", "issue", "list", "--state", "open", "--limit", "200").lines
 children = open_lines.reject { |line| line.start_with?("#{options[:parent_issue]}\t") }
 
-if children.any?
+if children.any? && !options[:force]
   warn "open child issues exist (count=#{children.size})"
   warn "suggestion is skipped until only parent issue remains"
   exit 0
@@ -48,4 +50,9 @@ if candidate.nil? || candidate.empty?
   exit 1
 end
 
+priority = candidate[/\[(P[1-3])\]/, 1] || "P2"
+title = candidate.gsub(/\[[^\]]+\]\s*/, "").gsub(/#\d+\s*/, "").strip
 warn "next_issue_suggestion=#{candidate}"
+warn "draft_title=#{title}"
+warn "draft_priority=priority: #{priority}"
+warn %(draft_command=gh issue create --title "#{title}" --label "priority: #{priority}" --label "area: v2-architecture" --label "kind: implementation")
