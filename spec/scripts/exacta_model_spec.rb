@@ -35,6 +35,39 @@ RSpec.describe "exacta model scripts" do
     end
   end
 
+  it "build_exacta_features.rb: train/valid parquet指定でも実行できる" do
+    Dir.mktmpdir("spec-exacta-build-parquet-") do |tmp|
+      train_source_csv = File.join(tmp, "train_source.csv")
+      valid_source_csv = File.join(tmp, "valid_source.csv")
+      write_csv(train_source_csv, feature_headers, sample_feature_rows(date: "2026-02-25", race_id: "2026-02-25-toride-01"))
+      write_csv(valid_source_csv, feature_headers, sample_feature_rows(date: "2026-02-26", race_id: "2026-02-26-toride-01"))
+
+      bin_dir = File.join(tmp, "bin")
+      create_fake_duckdb_for_exacta_parquet(bin_dir, train_source_csv, valid_source_csv)
+      env = { "PATH" => "#{bin_dir}:#{ENV.fetch('PATH', '')}" }
+
+      train_parquet = File.join(tmp, "train.parquet")
+      valid_parquet = File.join(tmp, "valid.parquet")
+      File.write(train_parquet, "fake parquet")
+      File.write(valid_parquet, "fake parquet")
+
+      out_dir = File.join(tmp, "ml_exacta")
+      _out, err, st = run_cmd(
+        "ruby", "scripts/build_exacta_features.rb",
+        "--train-parquet", train_parquet,
+        "--valid-parquet", valid_parquet,
+        "--db-path", File.join(tmp, "duckdb", "gk_yosoku.duckdb"),
+        "--out-dir", out_dir,
+        env: env
+      )
+      expect(st.success?).to be(true), err
+      expect(File).to exist(File.join(out_dir, "train_from_parquet.csv"))
+      expect(File).to exist(File.join(out_dir, "valid_from_parquet.csv"))
+      expect(File).to exist(File.join(out_dir, "train.csv"))
+      expect(File).to exist(File.join(out_dir, "valid.csv"))
+    end
+  end
+
   it "train/evaluate exactaモデルをfake lightgbmで実行できる" do
     Dir.mktmpdir("spec-exacta-train-eval-") do |tmp|
       bin_dir = File.join(tmp, "bin")
@@ -97,6 +130,32 @@ RSpec.describe "exacta model scripts" do
       exacta_pred = CSV.read(File.join(out_dir, "exacta_pred.csv"), headers: true)
       expect(exacta_pred.size).to eq(3)
     end
+  end
+
+  def create_fake_duckdb_for_exacta_parquet(bin_dir, train_source_csv, valid_source_csv)
+    FileUtils.mkdir_p(bin_dir)
+    path = File.join(bin_dir, "duckdb")
+    File.write(path, <<~SCRIPT)
+      #!/usr/bin/env ruby
+      require "fileutils"
+
+      sql = STDIN.read
+      sql.scan(/TO\\s+'([^']+)'/i).flatten.each do |out_path|
+        FileUtils.mkdir_p(File.dirname(out_path))
+        if out_path.include?("train_from_parquet.csv")
+          FileUtils.cp("#{train_source_csv}", out_path)
+        elsif out_path.include?("valid_from_parquet.csv")
+          FileUtils.cp("#{valid_source_csv}", out_path)
+        elsif out_path.end_with?(".csv")
+          File.write(out_path, "race_id,race_date,venue,race_number,car_number,player_name,rank,top1,top3\\n")
+        elsif out_path.end_with?(".parquet")
+          File.write(out_path, "fake parquet")
+        end
+      end
+      puts "duckdb ok"
+    SCRIPT
+    FileUtils.chmod("u+x", path)
+    path
   end
 
   it "train_exacta_lightgbm.rb: 不正なweight_modeはエラーになる" do

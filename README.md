@@ -400,6 +400,7 @@ make eval-exacta-model
 
 - `data/ml_exacta/exacta_pred.csv`（レースごとの2連単候補）
 - `data/ml_exacta/eval_summary.json`（`hit_at` と `auc`）
+- `build_exacta_features.rb` は `--train-parquet` / `--valid-parquet` 入力にも対応（CSV入力は互換用途）
 
 ### 6. 2連単/3連単候補の生成
 

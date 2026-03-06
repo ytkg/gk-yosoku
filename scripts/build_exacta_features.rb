@@ -4,22 +4,67 @@
 require "csv"
 require "fileutils"
 require "optparse"
+require_relative "lib/duckdb_runner"
 require_relative "lib/exacta_feature_schema"
 
 class ExactaFeatureBuilder
-  def initialize(train_csv:, valid_csv:, out_dir:)
+  def initialize(train_csv:, valid_csv:, train_parquet:, valid_parquet:, db_path:, out_dir:)
     @train_csv = train_csv
     @valid_csv = valid_csv
+    @train_parquet = train_parquet
+    @valid_parquet = valid_parquet
+    @db_path = db_path
     @out_dir = out_dir
     FileUtils.mkdir_p(@out_dir)
   end
 
   def run
-    build_for_split(@train_csv, File.join(@out_dir, "train.csv"))
-    build_for_split(@valid_csv, File.join(@out_dir, "valid.csv"))
+    validate_input_options!
+    build_for_split(resolved_train_csv, File.join(@out_dir, "train.csv"))
+    build_for_split(resolved_valid_csv, File.join(@out_dir, "valid.csv"))
   end
 
   private
+
+  def validate_input_options!
+    train_parquet_present = !(@train_parquet.nil? || @train_parquet.empty?)
+    valid_parquet_present = !(@valid_parquet.nil? || @valid_parquet.empty?)
+    train_csv_present = !(@train_csv.nil? || @train_csv.empty?)
+    valid_csv_present = !(@valid_csv.nil? || @valid_csv.empty?)
+
+    if train_parquet_present && !valid_parquet_present
+      raise "valid-parquet is required when train-parquet is set"
+    end
+
+    warn "train-csv is ignored because train-parquet is set" if train_parquet_present && train_csv_present
+    warn "valid-csv is ignored because valid-parquet is set" if valid_parquet_present && valid_csv_present
+  end
+
+  def resolved_train_csv
+    return @train_csv if @train_parquet.nil? || @train_parquet.empty?
+
+    materialize_parquet_to_csv(@train_parquet, File.join(@out_dir, "train_from_parquet.csv"))
+  end
+
+  def resolved_valid_csv
+    return @valid_csv if @valid_parquet.nil? || @valid_parquet.empty?
+
+    materialize_parquet_to_csv(@valid_parquet, File.join(@out_dir, "valid_from_parquet.csv"))
+  end
+
+  def materialize_parquet_to_csv(parquet_path, out_csv_path)
+    GK::DuckDBRunner.ensure_duckdb!(message: "duckdb command not found for parquet input")
+    sql = <<~SQL
+      COPY (
+        SELECT *
+        FROM read_parquet(#{GK::DuckDBRunner.sql_quote(parquet_path)})
+      )
+      TO #{GK::DuckDBRunner.sql_quote(out_csv_path)}
+      (HEADER, DELIMITER ',');
+    SQL
+    GK::DuckDBRunner.run_sql!(db_path: @db_path, sql: sql)
+    out_csv_path
+  end
 
   def build_for_split(in_path, out_path)
     rows = CSV.read(in_path, headers: true, encoding: "UTF-8").map(&:to_h)
@@ -101,13 +146,19 @@ end
 options = {
   train_csv: File.join("data", "ml", "train.csv"),
   valid_csv: File.join("data", "ml", "valid.csv"),
+  train_parquet: nil,
+  valid_parquet: nil,
+  db_path: File.join("data", "duckdb", "gk_yosoku.duckdb"),
   out_dir: File.join("data", "ml_exacta")
 }
 
 parser = OptionParser.new do |opts|
   opts.banner = "Usage: ruby scripts/build_exacta_features.rb [options]"
-  opts.on("--train-csv PATH", "base train csv (default: data/ml/train.csv)") { |v| options[:train_csv] = v }
-  opts.on("--valid-csv PATH", "base valid csv (default: data/ml/valid.csv)") { |v| options[:valid_csv] = v }
+  opts.on("--train-csv PATH", "base train csv (compatibility mode)") { |v| options[:train_csv] = v }
+  opts.on("--valid-csv PATH", "base valid csv (compatibility mode)") { |v| options[:valid_csv] = v }
+  opts.on("--train-parquet PATH", "base train parquet (recommended)") { |v| options[:train_parquet] = v }
+  opts.on("--valid-parquet PATH", "base valid parquet (recommended)") { |v| options[:valid_parquet] = v }
+  opts.on("--db-path PATH", "DuckDB DB path for parquet input") { |v| options[:db_path] = v }
   opts.on("--out-dir DIR", "output dir (default: data/ml_exacta)") { |v| options[:out_dir] = v }
 end
 parser.parse!
@@ -115,5 +166,8 @@ parser.parse!
 ExactaFeatureBuilder.new(
   train_csv: options[:train_csv],
   valid_csv: options[:valid_csv],
+  train_parquet: options[:train_parquet],
+  valid_parquet: options[:valid_parquet],
+  db_path: options[:db_path],
   out_dir: options[:out_dir]
 ).run
