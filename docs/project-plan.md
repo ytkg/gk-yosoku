@@ -122,12 +122,16 @@ make full FROM=2025-01-01 TO=2026-02-25 TRAIN_TO=2026-01-31 SLEEP=0.2
   既定: `--db-path $(PARQUET_DB)`
 - `DUCKDB_FEATURE_OPTS`  
   既定: `--lake-dir $(LAKE_DIR) --feature-set-version $(FEATURE_SET_VERSION) $(DUCKDB_DB_OPTS)`
+- `EVAL_DUCKDB_MODEL` / `EVAL_DUCKDB_ENCODERS` / `EVAL_DUCKDB_OUT_DIR` / `EVAL_DUCKDB_TARGET_COL`
+  `eval-duckdb` 実行時の推奨変数（旧 `EVAL_MODEL` 系は互換エイリアス）
 - `EVAL_DUCKDB_BASE_OPTS`  
   既定: `$(DUCKDB_FEATURE_OPTS)`
 - `CV_DUCKDB_OPTS`  
   既定: `$(DUCKDB_FEATURE_OPTS)`
 - `TRAIN_DUCKDB_OPTS`  
   既定: `--train-parquet $(PROFILE_MART_DIR)/train.parquet --valid-parquet $(PROFILE_MART_DIR)/valid.parquet $(DUCKDB_DB_OPTS)`
+- `SPLIT_EMIT_CSV`
+  既定: `true`（`false` 指定で split 時の CSV 生成をスキップ）
 - `TUNE_TRAIN_PARQUET`  
   既定: `$(PROFILE_MART_DIR)/train.parquet`
 - `TUNE_DUCKDB_OPTS`  

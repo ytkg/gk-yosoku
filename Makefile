@@ -30,11 +30,16 @@ FEATURE_SET_VERSION ?= v1
 DUCKDB_DB_OPTS ?= --db-path $(PARQUET_DB)
 DUCKDB_FEATURE_OPTS ?= --lake-dir $(LAKE_DIR) --feature-set-version $(FEATURE_SET_VERSION) $(DUCKDB_DB_OPTS)
 EVAL_DUCKDB_OPTS ?=
-EVAL_MODEL ?= data/ml/model.txt
-EVAL_ENCODERS ?= data/ml/encoders.json
-EVAL_OUT_DIR ?= data/ml
-EVAL_TARGET_COL ?= top3
+EVAL_DUCKDB_MODEL ?= data/ml/model.txt
+EVAL_DUCKDB_ENCODERS ?= data/ml/encoders.json
+EVAL_DUCKDB_OUT_DIR ?= data/ml
+EVAL_DUCKDB_TARGET_COL ?= top3
 EVAL_DUCKDB_BASE_OPTS ?= $(DUCKDB_FEATURE_OPTS)
+# backward-compatible aliases (deprecated)
+EVAL_MODEL ?= $(EVAL_DUCKDB_MODEL)
+EVAL_ENCODERS ?= $(EVAL_DUCKDB_ENCODERS)
+EVAL_OUT_DIR ?= $(EVAL_DUCKDB_OUT_DIR)
+EVAL_TARGET_COL ?= $(EVAL_DUCKDB_TARGET_COL)
 DUCKDB_BACKUP_DIR ?= data/duckdb_backup
 HIT5_PROFILE ?= data/ml/exotic_profile_hit5.json
 HIT5_LEARN_OPTS ?=
@@ -101,7 +106,7 @@ help:
 	@echo "  make split-duckdb FROM=YYYY-MM-DD TO=YYYY-MM-DD TRAIN_TO=YYYY-MM-DD SPLIT_EMIT_CSV=true|false"
 	@echo "  make split (deprecated wrapper)"
 	@echo "  make validate-duckdb FROM=YYYY-MM-DD TO=YYYY-MM-DD"
-	@echo "  make eval-duckdb FROM=YYYY-MM-DD TO=YYYY-MM-DD EVAL_DUCKDB_OPTS='--target-col top3'"
+	@echo "  make eval-duckdb FROM=YYYY-MM-DD TO=YYYY-MM-DD EVAL_DUCKDB_OPTS='--target-col top3' EVAL_DUCKDB_MODEL=data/ml/model.txt"
 	@echo "  make backup-duckdb"
 	@echo "  make restore-duckdb SRC=path/to/gk_yosoku_YYYYMMDDTHHMMSSZ.duckdb"
 	@echo "  make features-exacta"
@@ -312,10 +317,10 @@ eval-duckdb:
 	$(DOCKER_RUN) ruby scripts/evaluate_lightgbm_duckdb.rb \
 		--from-date $(FROM) \
 		--to-date $(TO) \
-		--model $(EVAL_MODEL) \
-		--encoders $(EVAL_ENCODERS) \
-		--out-dir $(EVAL_OUT_DIR) \
-		--target-col $(EVAL_TARGET_COL) \
+		--model $(EVAL_DUCKDB_MODEL) \
+		--encoders $(EVAL_DUCKDB_ENCODERS) \
+		--out-dir $(EVAL_DUCKDB_OUT_DIR) \
+		--target-col $(EVAL_DUCKDB_TARGET_COL) \
 		$(EVAL_DUCKDB_BASE_OPTS) \
 		$(EVAL_DUCKDB_OPTS)
 
@@ -346,7 +351,7 @@ train-top3-noplayer:
 
 eval:
 	@echo "[deprecated] make eval now delegates to eval-duckdb"
-	$(MAKE) eval-duckdb FROM=$(FROM) TO=$(TO) LAKE_DIR=$(LAKE_DIR) PARQUET_DB=$(PARQUET_DB) EVAL_DUCKDB_OPTS="$(TOP3_EVAL_OPTS)" EVAL_MODEL=data/ml/model.txt EVAL_ENCODERS=data/ml/encoders.json EVAL_OUT_DIR=data/ml EVAL_TARGET_COL=top3
+	$(MAKE) eval-duckdb FROM=$(FROM) TO=$(TO) LAKE_DIR=$(LAKE_DIR) PARQUET_DB=$(PARQUET_DB) EVAL_DUCKDB_OPTS="$(TOP3_EVAL_OPTS)" EVAL_DUCKDB_MODEL=data/ml/model.txt EVAL_DUCKDB_ENCODERS=data/ml/encoders.json EVAL_DUCKDB_OUT_DIR=data/ml EVAL_DUCKDB_TARGET_COL=top3
 
 train-top1:
 	$(DOCKER_RUN) ruby scripts/train_lightgbm.rb --target-col top1 --out-dir data/ml_top1 --weight-mode $(WEIGHT_MODE) --decay-half-life-days $(DECAY_HALF_LIFE_DAYS) --min-sample-weight $(MIN_SAMPLE_WEIGHT) $(TOP1_FEATURE_OPTS) $(TRAIN_DUCKDB_OPTS) $(TOP1_TRAIN_OPTS)
@@ -355,7 +360,7 @@ train-top1-noplayer:
 	$(MAKE) train-top1 TOP1_FEATURE_SET=noplayer TOP1_TRAIN_OPTS="$(TOP1_TRAIN_OPTS)"
 
 eval-top1:
-	$(MAKE) eval-duckdb FROM=$(FROM) TO=$(TO) LAKE_DIR=$(LAKE_DIR) PARQUET_DB=$(PARQUET_DB) EVAL_MODEL=data/ml_top1/model.txt EVAL_ENCODERS=data/ml_top1/encoders.json EVAL_OUT_DIR=data/ml_top1 EVAL_TARGET_COL=top1 EVAL_DUCKDB_OPTS="$(TOP1_EVAL_OPTS)"
+	$(MAKE) eval-duckdb FROM=$(FROM) TO=$(TO) LAKE_DIR=$(LAKE_DIR) PARQUET_DB=$(PARQUET_DB) EVAL_DUCKDB_MODEL=data/ml_top1/model.txt EVAL_DUCKDB_ENCODERS=data/ml_top1/encoders.json EVAL_DUCKDB_OUT_DIR=data/ml_top1 EVAL_DUCKDB_TARGET_COL=top1 EVAL_DUCKDB_OPTS="$(TOP1_EVAL_OPTS)"
 
 train-exacta:
 	$(DOCKER_RUN) ruby scripts/train_exacta_lightgbm.rb --train-csv data/ml_exacta/train.csv --valid-csv data/ml_exacta/valid.csv --out-dir data/ml_exacta --weight-mode $(WEIGHT_MODE) --decay-half-life-days $(DECAY_HALF_LIFE_DAYS) --min-sample-weight $(MIN_SAMPLE_WEIGHT) $(EXACTA_TRAIN_OPTS)
@@ -375,13 +380,13 @@ train-weakodds:
 	$(DOCKER_RUN) ruby scripts/train_lightgbm.rb --target-col top3 --drop-features $(WEAK_DROP) --out-dir data/ml_weakodds --weight-mode $(WEIGHT_MODE) --decay-half-life-days $(DECAY_HALF_LIFE_DAYS) --min-sample-weight $(MIN_SAMPLE_WEIGHT) $(TOP3_FEATURE_OPTS) $(TRAIN_DUCKDB_OPTS) $(TOP3_TRAIN_OPTS)
 
 eval-weakodds:
-	$(MAKE) eval-duckdb FROM=$(FROM) TO=$(TO) LAKE_DIR=$(LAKE_DIR) PARQUET_DB=$(PARQUET_DB) EVAL_MODEL=data/ml_weakodds/model.txt EVAL_ENCODERS=data/ml_weakodds/encoders.json EVAL_OUT_DIR=data/ml_weakodds EVAL_TARGET_COL=top3
+	$(MAKE) eval-duckdb FROM=$(FROM) TO=$(TO) LAKE_DIR=$(LAKE_DIR) PARQUET_DB=$(PARQUET_DB) EVAL_DUCKDB_MODEL=data/ml_weakodds/model.txt EVAL_DUCKDB_ENCODERS=data/ml_weakodds/encoders.json EVAL_DUCKDB_OUT_DIR=data/ml_weakodds EVAL_DUCKDB_TARGET_COL=top3
 
 train-top1-weakodds:
 	$(DOCKER_RUN) ruby scripts/train_lightgbm.rb --target-col top1 --drop-features $(WEAK_DROP) --out-dir data/ml_top1_weakodds --weight-mode $(WEIGHT_MODE) --decay-half-life-days $(DECAY_HALF_LIFE_DAYS) --min-sample-weight $(MIN_SAMPLE_WEIGHT) $(TOP1_FEATURE_OPTS) $(TRAIN_DUCKDB_OPTS) $(TOP1_TRAIN_OPTS)
 
 eval-top1-weakodds:
-	$(MAKE) eval-duckdb FROM=$(FROM) TO=$(TO) LAKE_DIR=$(LAKE_DIR) PARQUET_DB=$(PARQUET_DB) EVAL_MODEL=data/ml_top1_weakodds/model.txt EVAL_ENCODERS=data/ml_top1_weakodds/encoders.json EVAL_OUT_DIR=data/ml_top1_weakodds EVAL_TARGET_COL=top1
+	$(MAKE) eval-duckdb FROM=$(FROM) TO=$(TO) LAKE_DIR=$(LAKE_DIR) PARQUET_DB=$(PARQUET_DB) EVAL_DUCKDB_MODEL=data/ml_top1_weakodds/model.txt EVAL_DUCKDB_ENCODERS=data/ml_top1_weakodds/encoders.json EVAL_DUCKDB_OUT_DIR=data/ml_top1_weakodds EVAL_DUCKDB_TARGET_COL=top1
 
 exotic:
 	$(DOCKER_RUN) ruby scripts/generate_exotics.rb $(EXOTIC_OPTS)

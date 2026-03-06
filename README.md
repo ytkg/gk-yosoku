@@ -750,10 +750,12 @@ DuckDB/Parquet 共通:
 - `FEATURE_SET_VERSION`（既定: `v1`）
 - `DUCKDB_DB_OPTS`（既定: `--db-path $(PARQUET_DB)`）
 - `DUCKDB_FEATURE_OPTS`（既定: `--lake-dir $(LAKE_DIR) --feature-set-version $(FEATURE_SET_VERSION) $(DUCKDB_DB_OPTS)`）
+- `EVAL_DUCKDB_MODEL` / `EVAL_DUCKDB_ENCODERS` / `EVAL_DUCKDB_OUT_DIR` / `EVAL_DUCKDB_TARGET_COL`（`eval-duckdb` の推奨変数）
 - `EVAL_DUCKDB_BASE_OPTS`（既定: `$(DUCKDB_FEATURE_OPTS)`）
 - `CV_DUCKDB_OPTS`（既定: `$(DUCKDB_FEATURE_OPTS)`）
 
 split/train/tune 関連:
+- `SPLIT_EMIT_CSV`（既定: `true`、`false` 指定で `train.csv` / `valid.csv` の生成をスキップ）
 - `PROFILE_SPLIT_ID`（既定: `FROM_TO_TRAIN_TO` から自動生成）
 - `PROFILE_MART_DIR`（既定: `data/marts/train_valid/split_id=$(PROFILE_SPLIT_ID)`）
 - `TRAIN_DUCKDB_OPTS`（既定: `--train-parquet $(PROFILE_MART_DIR)/train.parquet --valid-parquet $(PROFILE_MART_DIR)/valid.parquet $(DUCKDB_DB_OPTS)`）
