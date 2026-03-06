@@ -63,7 +63,7 @@
 1. 新しい改善Issueを起票した直後に、親Issue #32 の「次候補」を更新する
 2. 直前の次候補Issueをクローズした直後に、次のIssue番号へ差し替える
 3. 更新時は project-plan の「次の改善候補」と親Issue #32 の記述を同一内容にそろえる
-4. 更新は `make sync-next-issue` を優先し、手動編集は例外時のみ行う
+4. 更新は `make sync-next-issue` を優先し、親Issueと project-plan の次候補先頭を同時同期する
 
 ## パイプライン構成（現行）
 
@@ -320,7 +320,7 @@ make cv-top1 FROM=2025-01-01 TO=2026-02-25 \
 
 ## 次の改善候補
 
-1. [P1] `split-duckdb` から `train.csv` / `valid.csv` 依存を段階縮退し、学習器入力のParquet直接化を設計する
+1. [P2] #192 [改善] docs/project-plan の次候補を issue 番号連動で自動整形する
 2. [P1] `evaluate_lightgbm_duckdb` / `tune_lightgbm` / `run_timeseries_cv` の共通オプションを整理し、実行インターフェースを統一する
 3. [P2] time-decay の半減期をCV平均で探索し、既定値を再設定する
 4. [P2] `top1` と `top3` の特徴量セット分岐最適化（モデル目的に合わせた削減/追加）

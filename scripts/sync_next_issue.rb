@@ -37,13 +37,15 @@ end
 options = {
   parent_issue: 32,
   limit: 200,
-  dry_run: false
+  dry_run: false,
+  project_plan_path: File.join("docs", "project-plan.md")
 }
 
 OptionParser.new do |opts|
   opts.banner = "Usage: ruby scripts/sync_next_issue.rb [options]"
   opts.on("--parent-issue N", Integer, "親Issue番号 (default: 32)") { |v| options[:parent_issue] = v }
   opts.on("--limit N", Integer, "open issue取得件数 (default: 200)") { |v| options[:limit] = v }
+  opts.on("--project-plan-path PATH", "project-plan の同期先 (default: docs/project-plan.md)") { |v| options[:project_plan_path] = v }
   opts.on("--dry-run", "更新せずに差分候補を表示") { options[:dry_run] = true }
 end.parse!
 
@@ -71,6 +73,23 @@ Tempfile.create("issue_body") do |f|
   f.write(updated_body)
   f.flush
   run!("gh", "issue", "edit", options[:parent_issue].to_s, "--body-file", f.path)
+end
+
+if File.exist?(options[:project_plan_path])
+  project_plan = File.read(options[:project_plan_path], encoding: "UTF-8")
+  next_text =
+    if next_issue
+      priority = next_issue.fetch("labels", []).map { |l| l["name"] }.find { |name| name.start_with?("priority: ") }
+      priority_tag = priority ? priority.sub("priority: ", "") : "P2"
+      "1. [#{priority_tag}] ##{next_issue['number']} #{next_issue['title']}"
+    else
+      "1. [P3] 子Issueなし（次候補を新規起票）"
+    end
+  updated_plan = project_plan.sub(
+    /(## 次の改善候補\n\n)1\.[^\n]*/,
+    "\\1#{next_text}"
+  )
+  File.write(options[:project_plan_path], updated_plan) unless updated_plan == project_plan
 end
 
 warn "updated_parent_issue=#{options[:parent_issue]}"
