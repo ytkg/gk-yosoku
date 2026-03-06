@@ -10,12 +10,13 @@ require "optparse"
 class LightGBMTuner
   SORTABLE_METRICS = %w[auc winner_hit_rate top3_exact_match_rate top3_recall_at3].freeze
 
-  def initialize(train_csv:, valid_csv:, train_parquet:, valid_parquet:, db_path:, out_dir:, num_iterations:, early_stopping_round:, learning_rates:, num_leaves_list:, min_data_in_leaf_list:, target_col:, drop_features:, sort_metric:, weight_mode:, decay_half_life_days:, min_sample_weight:)
+  def initialize(train_csv:, valid_csv:, train_parquet:, valid_parquet:, db_path:, split_summary_json:, out_dir:, num_iterations:, early_stopping_round:, learning_rates:, num_leaves_list:, min_data_in_leaf_list:, target_col:, drop_features:, sort_metric:, weight_mode:, decay_half_life_days:, min_sample_weight:)
     @train_csv = train_csv
     @valid_csv = valid_csv
     @train_parquet = train_parquet
     @valid_parquet = valid_parquet
     @db_path = db_path
+    @split_summary_json = split_summary_json
     @out_dir = out_dir
     @num_iterations = num_iterations
     @early_stopping_round = early_stopping_round
@@ -110,6 +111,7 @@ class LightGBMTuner
       "--decay-half-life-days", @decay_half_life_days.to_s,
       "--min-sample-weight", @min_sample_weight.to_s
     ]
+    cmd += ["--split-summary-json", @split_summary_json] unless @split_summary_json.nil? || @split_summary_json.empty?
     if @train_parquet.nil? || @train_parquet.empty?
       cmd += ["--train-csv", @train_csv]
     else
@@ -186,6 +188,7 @@ options = {
   train_parquet: nil,
   valid_parquet: nil,
   db_path: File.join("data", "duckdb", "gk_yosoku.duckdb"),
+  split_summary_json: "",
   out_dir: File.join("data", "ml", "tuning"),
   num_iterations: 400,
   early_stopping_round: 30,
@@ -207,6 +210,7 @@ parser = OptionParser.new do |opts|
   opts.on("--train-parquet PATH", "train parquet path (recommended)") { |v| options[:train_parquet] = v }
   opts.on("--valid-parquet PATH", "valid parquet path (recommended)") { |v| options[:valid_parquet] = v }
   opts.on("--db-path PATH", "DuckDB DBファイル (valid-parquet利用時)") { |v| options[:db_path] = v }
+  opts.on("--split-summary-json PATH", "split_summary.json path for audit log") { |v| options[:split_summary_json] = v }
   opts.on("--out-dir DIR", "tuning output dir") { |v| options[:out_dir] = v }
   opts.on("--num-iterations N", Integer, "boosting rounds for each trial") { |v| options[:num_iterations] = v }
   opts.on("--early-stopping-round N", Integer, "early stopping rounds") { |v| options[:early_stopping_round] = v }
@@ -232,6 +236,7 @@ LightGBMTuner.new(
   train_parquet: options[:train_parquet],
   valid_parquet: options[:valid_parquet],
   db_path: options[:db_path],
+  split_summary_json: options[:split_summary_json],
   out_dir: options[:out_dir],
   num_iterations: options[:num_iterations],
   early_stopping_round: options[:early_stopping_round],

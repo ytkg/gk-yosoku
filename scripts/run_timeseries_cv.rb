@@ -7,6 +7,7 @@ require "fileutils"
 require "json"
 require "open3"
 require "optparse"
+require_relative "lib/split_summary"
 
 class TimeSeriesCVRunner
   def initialize(from_date:, to_date:, train_days:, valid_days:, step_days:, lake_dir:, db_path:, feature_set_version:, out_dir:, target_col:, drop_features:, weight_mode:, decay_half_life_days:, min_sample_weight:)
@@ -46,6 +47,7 @@ class TimeSeriesCVRunner
 
       run_split!(split_dir, fold)
       split_outputs = split_output_paths(split_dir, fold)
+      split_summary = GK::SplitSummary.load(File.join(split_dir, "split_summary.json")) || {}
       train_input_mode = run_train!(split_outputs, model_dir)
       summary, eval_input_mode = run_eval!(split_outputs, model_dir, eval_dir)
 
@@ -55,6 +57,8 @@ class TimeSeriesCVRunner
         "train_to" => fold[:train_to].iso8601,
         "valid_from" => fold[:valid_from].iso8601,
         "valid_to" => fold[:valid_to].iso8601,
+        "split_id" => split_summary["split_id"],
+        "split_emit_csv" => split_summary["emit_csv"],
         "target_col" => @target_col,
         "train_input_mode" => train_input_mode,
         "eval_input_mode" => eval_input_mode,
@@ -69,6 +73,7 @@ class TimeSeriesCVRunner
       warn(
         "fold=#{fold_id} train=#{row['train_from']}..#{row['train_to']} " \
         "valid=#{row['valid_from']}..#{row['valid_to']} " \
+        "split_id=#{row['split_id']} emit_csv=#{row['split_emit_csv']} " \
         "input_mode(train=#{row['train_input_mode']},eval=#{row['eval_input_mode']}) " \
         "auc=#{format('%.6f', row['auc'])} winner_hit_rate=#{format('%.6f', row['winner_hit_rate'])}"
       )
@@ -157,6 +162,7 @@ class TimeSeriesCVRunner
   def write_results(rows)
     headers = %w[
       fold train_from train_to valid_from valid_to target_col
+      split_id split_emit_csv
       train_input_mode eval_input_mode
       rows races auc winner_hit_rate top3_exact_match_rate top3_recall_at3
     ]

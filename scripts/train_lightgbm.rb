@@ -10,6 +10,7 @@ require "optparse"
 require "rbconfig"
 require_relative "lib/duckdb_runner"
 require_relative "lib/parquet_materializer"
+require_relative "lib/split_summary"
 require_relative "lib/feature_schema"
 require_relative "lib/lightgbm_utils"
 require_relative "lib/model_manifest"
@@ -17,12 +18,13 @@ require_relative "lib/model_manifest"
 class LightGBMTrainer
   WEIGHT_MODES = %w[none time_decay].freeze
 
-  def initialize(train_csv:, valid_csv:, train_parquet:, valid_parquet:, db_path:, out_dir:, num_iterations:, learning_rate:, num_leaves:, min_data_in_leaf:, early_stopping_round:, target_col:, drop_features:, weight_mode:, decay_half_life_days:, min_sample_weight:)
+  def initialize(train_csv:, valid_csv:, train_parquet:, valid_parquet:, db_path:, split_summary_json:, out_dir:, num_iterations:, learning_rate:, num_leaves:, min_data_in_leaf:, early_stopping_round:, target_col:, drop_features:, weight_mode:, decay_half_life_days:, min_sample_weight:)
     @train_csv = train_csv
     @valid_csv = valid_csv
     @train_parquet = train_parquet
     @valid_parquet = valid_parquet
     @db_path = db_path
+    @split_summary_json = split_summary_json
     @out_dir = out_dir
     @num_iterations = num_iterations
     @learning_rate = learning_rate
@@ -41,6 +43,7 @@ class LightGBMTrainer
   def run
     check_lightgbm!
     validate_input_options!
+    log_split_summary
 
     train_rows = CSV.read(resolved_train_csv, headers: true, encoding: "UTF-8").map(&:to_h)
     valid_rows = CSV.read(resolved_valid_csv, headers: true, encoding: "UTF-8").map(&:to_h)
@@ -267,6 +270,11 @@ class LightGBMTrainer
     warn "input_mode=csv (compatibility)" if !@train_csv.nil? && !@train_csv.empty?
     "csv"
   end
+
+  def log_split_summary
+    msg = GK::SplitSummary.format_for_log(GK::SplitSummary.load(@split_summary_json))
+    warn msg unless msg.nil?
+  end
 end
 
 options = {
@@ -275,6 +283,7 @@ options = {
   train_parquet: nil,
   valid_parquet: nil,
   db_path: File.join("data", "duckdb", "gk_yosoku.duckdb"),
+  split_summary_json: "",
   out_dir: File.join("data", "ml"),
   num_iterations: 200,
   learning_rate: 0.05,
@@ -295,6 +304,7 @@ parser = OptionParser.new do |opts|
   opts.on("--train-parquet PATH", "train parquet path (recommended)") { |v| options[:train_parquet] = v }
   opts.on("--valid-parquet PATH", "valid parquet path (recommended)") { |v| options[:valid_parquet] = v }
   opts.on("--db-path PATH", "DuckDB DB ファイルパス (parquet利用時)") { |v| options[:db_path] = v }
+  opts.on("--split-summary-json PATH", "split_summary.json path for audit log") { |v| options[:split_summary_json] = v }
   opts.on("--out-dir DIR", "output dir") { |v| options[:out_dir] = v }
   opts.on("--num-iterations N", Integer, "boosting rounds") { |v| options[:num_iterations] = v }
   opts.on("--learning-rate X", Float, "learning rate") { |v| options[:learning_rate] = v }
@@ -315,6 +325,7 @@ LightGBMTrainer.new(
   train_parquet: options[:train_parquet],
   valid_parquet: options[:valid_parquet],
   db_path: options[:db_path],
+  split_summary_json: options[:split_summary_json],
   out_dir: options[:out_dir],
   num_iterations: options[:num_iterations],
   learning_rate: options[:learning_rate],

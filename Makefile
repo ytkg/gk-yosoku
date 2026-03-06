@@ -65,11 +65,12 @@ HIT5_TOP1_MODEL ?= data/ml_top1/tuning_v2/trial_002/model.txt
 HIT5_TOP1_ENCODERS ?= data/ml_top1/tuning_v2/trial_002/encoders.json
 PROFILE_SPLIT_ID ?= $(subst -,,$(FROM))_$(subst -,,$(TO))_train_to_$(subst -,,$(TRAIN_TO))
 PROFILE_MART_DIR ?= data/marts/train_valid/split_id=$(PROFILE_SPLIT_ID)
-TRAIN_DUCKDB_OPTS ?= --train-parquet $(PROFILE_MART_DIR)/train.parquet --valid-parquet $(PROFILE_MART_DIR)/valid.parquet $(DUCKDB_DB_OPTS)
+SPLIT_SUMMARY_JSON ?= data/ml/split_summary.json
+TRAIN_DUCKDB_OPTS ?= --train-parquet $(PROFILE_MART_DIR)/train.parquet --valid-parquet $(PROFILE_MART_DIR)/valid.parquet --split-summary-json $(SPLIT_SUMMARY_JSON) $(DUCKDB_DB_OPTS)
 SPLIT_EMIT_CSV ?= true
 TUNE_TRAIN_PARQUET ?= $(PROFILE_MART_DIR)/train.parquet
 TUNE_VALID_PARQUET ?= $(PROFILE_MART_DIR)/valid.parquet
-TUNE_DUCKDB_OPTS ?= --train-parquet $(TUNE_TRAIN_PARQUET) --valid-parquet $(TUNE_VALID_PARQUET) $(DUCKDB_DB_OPTS)
+TUNE_DUCKDB_OPTS ?= --train-parquet $(TUNE_TRAIN_PARQUET) --valid-parquet $(TUNE_VALID_PARQUET) --split-summary-json $(SPLIT_SUMMARY_JSON) $(DUCKDB_DB_OPTS)
 CV_DUCKDB_OPTS ?= $(DUCKDB_FEATURE_OPTS)
 HALF_LIFE_GRID ?= 60,90,120,180
 HALF_LIFE_CV_OUT_DIR ?= data/ml_cv_half_life
@@ -172,6 +173,7 @@ help:
 	@echo "  notes:"
 	@echo "    vars(shared): FROM TO WEIGHT_MODE DECAY_HALF_LIFE_DAYS MIN_SAMPLE_WEIGHT"
 	@echo "    vars(split): SPLIT_EMIT_CSV=true|false"
+	@echo "    vars(split): SPLIT_SUMMARY_JSON=data/ml/split_summary.json"
 	@echo "    vars(train): TOP3_FEATURE_SET=full|noplayer TOP1_FEATURE_SET=full|noplayer"
 	@echo "    vars(cv): CV_OPTS HALF_LIFE_OPTS HALF_LIFE_GRID"
 	@echo "    vars(exotic): EXOTIC_TOPS=exacta_top,trifecta_top (example: 20,50)"
