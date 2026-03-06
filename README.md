@@ -671,6 +671,7 @@ make predict-exacta RACE_URL="https://keirin.kdreams.jp/toride/racedetail/232026
 補足:
 - `learn-hit5-profile` は `data/marts/train_valid/split_id=.../train.parquet` と `valid.parquet` を入力に使います。
 - 事前に `make split-duckdb FROM=... TO=... TRAIN_TO=...` を実行してください。
+- `learn_exotic_profile.rb` は `--train-actual-parquet` / `--valid-actual-parquet`（+ `--db-path`）で actual を Parquet 指定できます。
 - `--config` を使うと `exotic_profile_*.json` の `config.path` に参照設定ファイルが記録されます。
 - `--config` 併用時にCLIで上書きしたキーは `config.cli_overrides` に記録されます。
 - `EXOTIC_TOPS` は `exacta_top,trifecta_top` の順で指定します（例: `20,50`）。

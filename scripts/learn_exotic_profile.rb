@@ -6,16 +6,20 @@ require "fileutils"
 require "json"
 require "optparse"
 require "yaml"
+require_relative "lib/duckdb_runner"
 require_relative "lib/exotic_scoring"
 
 class ExoticProfileLearner
-  def initialize(train_top3_csv:, train_top1_csv:, train_actual_csv:, valid_top3_csv:, valid_top1_csv:, valid_actual_csv:, out_path:, objective_n:, exacta_weight:, trifecta_weight:, temp_grid:, exp_grid:, exacta_second_win_exp_grid:, max_trials:, random_seed:, config_path:, cli_overrides:)
+  def initialize(train_top3_csv:, train_top1_csv:, train_actual_csv:, train_actual_parquet:, valid_top3_csv:, valid_top1_csv:, valid_actual_csv:, valid_actual_parquet:, db_path:, out_path:, objective_n:, exacta_weight:, trifecta_weight:, temp_grid:, exp_grid:, exacta_second_win_exp_grid:, max_trials:, random_seed:, config_path:, cli_overrides:)
     @train_top3_csv = train_top3_csv
     @train_top1_csv = train_top1_csv
     @train_actual_csv = train_actual_csv
+    @train_actual_parquet = train_actual_parquet
     @valid_top3_csv = valid_top3_csv
     @valid_top1_csv = valid_top1_csv
     @valid_actual_csv = valid_actual_csv
+    @valid_actual_parquet = valid_actual_parquet
+    @db_path = db_path
     @out_path = out_path
     @objective_n = objective_n
     @exacta_weight = exacta_weight
@@ -30,8 +34,8 @@ class ExoticProfileLearner
   end
 
   def run
-    train_races = build_races(@train_top3_csv, @train_top1_csv, @train_actual_csv)
-    valid_races = build_races(@valid_top3_csv, @valid_top1_csv, @valid_actual_csv)
+    train_races = build_races(@train_top3_csv, @train_top1_csv, resolved_actual_csv(:train))
+    valid_races = build_races(@valid_top3_csv, @valid_top1_csv, resolved_actual_csv(:valid))
     raise "train races is empty" if train_races.empty?
     raise "valid races is empty" if valid_races.empty?
 
@@ -109,6 +113,34 @@ class ExoticProfileLearner
   end
 
   private
+
+  def resolved_actual_csv(split)
+    parquet_path, csv_path =
+      if split == :train
+        [@train_actual_parquet, @train_actual_csv]
+      else
+        [@valid_actual_parquet, @valid_actual_csv]
+      end
+    return csv_path if parquet_path.nil? || parquet_path.empty?
+
+    out_csv = File.join(File.dirname(@out_path), "#{split}_actual_from_parquet.csv")
+    warn "#{split}_actual input mode=parquet"
+    materialize_parquet_to_csv(parquet_path, out_csv)
+  end
+
+  def materialize_parquet_to_csv(parquet_path, out_csv_path)
+    GK::DuckDBRunner.ensure_duckdb!(message: "duckdb command not found for parquet input")
+    sql = <<~SQL
+      COPY (
+        SELECT *
+        FROM read_parquet(#{GK::DuckDBRunner.sql_quote(parquet_path)})
+      )
+      TO #{GK::DuckDBRunner.sql_quote(out_csv_path)}
+      (HEADER, DELIMITER ',');
+    SQL
+    GK::DuckDBRunner.run_sql!(db_path: @db_path, sql: sql)
+    out_csv_path
+  end
 
   def better_of(best, candidate)
     return candidate if best.nil?
@@ -308,9 +340,12 @@ options = {
   train_top3_csv: File.join("data", "ml_profile", "top3_train", "valid_pred.csv"),
   train_top1_csv: File.join("data", "ml_profile", "top1_train", "valid_pred.csv"),
   train_actual_csv: File.join("data", "ml", "train.csv"),
+  train_actual_parquet: nil,
   valid_top3_csv: File.join("data", "ml_profile", "top3_valid", "valid_pred.csv"),
   valid_top1_csv: File.join("data", "ml_profile", "top1_valid", "valid_pred.csv"),
   valid_actual_csv: File.join("data", "ml", "valid.csv"),
+  valid_actual_parquet: nil,
+  db_path: File.join("data", "duckdb", "gk_yosoku.duckdb"),
   out_path: File.join("data", "ml", "exotic_profile_hit5.json"),
   objective_n: 5,
   exacta_weight: 1.0,
@@ -329,10 +364,13 @@ parser = OptionParser.new do |opts|
   opts.on("--config PATH", "YAML config path (CLI options override config)") { |v| options[:config_path] = v }
   opts.on("--train-top3-csv PATH", "train top3 prediction csv") { |v| options[:train_top3_csv] = v }
   opts.on("--train-top1-csv PATH", "train top1 prediction csv") { |v| options[:train_top1_csv] = v }
-  opts.on("--train-actual-csv PATH", "train actual csv") { |v| options[:train_actual_csv] = v }
+  opts.on("--train-actual-csv PATH", "train actual csv (compatibility mode)") { |v| options[:train_actual_csv] = v }
+  opts.on("--train-actual-parquet PATH", "train actual parquet (recommended)") { |v| options[:train_actual_parquet] = v }
   opts.on("--valid-top3-csv PATH", "valid top3 prediction csv") { |v| options[:valid_top3_csv] = v }
   opts.on("--valid-top1-csv PATH", "valid top1 prediction csv") { |v| options[:valid_top1_csv] = v }
-  opts.on("--valid-actual-csv PATH", "valid actual csv") { |v| options[:valid_actual_csv] = v }
+  opts.on("--valid-actual-csv PATH", "valid actual csv (compatibility mode)") { |v| options[:valid_actual_csv] = v }
+  opts.on("--valid-actual-parquet PATH", "valid actual parquet (recommended)") { |v| options[:valid_actual_parquet] = v }
+  opts.on("--db-path PATH", "DuckDB DB path for parquet input") { |v| options[:db_path] = v }
   opts.on("--out PATH", "output profile json path") { |v| options[:out_path] = v }
   opts.on("--objective-n N", Integer, "optimize hit@N (default: 5)") { |v| options[:objective_n] = v }
   opts.on("--exacta-weight X", Float, "objective weight for exacta hit@N (default: 1.0)") { |v| options[:exacta_weight] = v }
@@ -442,9 +480,12 @@ ExoticProfileLearner.new(
   train_top3_csv: options[:train_top3_csv],
   train_top1_csv: options[:train_top1_csv],
   train_actual_csv: options[:train_actual_csv],
+  train_actual_parquet: options[:train_actual_parquet],
   valid_top3_csv: options[:valid_top3_csv],
   valid_top1_csv: options[:valid_top1_csv],
   valid_actual_csv: options[:valid_actual_csv],
+  valid_actual_parquet: options[:valid_actual_parquet],
+  db_path: options[:db_path],
   out_path: options[:out_path],
   objective_n: options[:objective_n],
   exacta_weight: options[:exacta_weight],

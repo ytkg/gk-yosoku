@@ -238,6 +238,61 @@ RSpec.describe "generate/evaluate/learn exotics" do
     end
   end
 
+  it "learn_exotic_profile.rb: train/valid actual parquet 指定でも実行できる" do
+    Dir.mktmpdir("spec-exotic-profile-actual-parquet-") do |tmp|
+      bin_dir = File.join(tmp, "bin")
+      create_fake_duckdb_for_exotics(bin_dir)
+      env = { "PATH" => "#{bin_dir}:#{ENV.fetch('PATH', '')}" }
+
+      train_top3_csv = File.join(tmp, "train_top3.csv")
+      train_top1_csv = File.join(tmp, "train_top1.csv")
+      valid_top3_csv = File.join(tmp, "valid_top3.csv")
+      valid_top1_csv = File.join(tmp, "valid_top1.csv")
+      profile_path = File.join(tmp, "exotic_profile.json")
+      train_actual_parquet = File.join(tmp, "train_actual.parquet")
+      valid_actual_parquet = File.join(tmp, "valid_actual.parquet")
+      File.write(train_actual_parquet, "fake parquet")
+      File.write(valid_actual_parquet, "fake parquet")
+
+      headers = %w[race_id race_date venue race_number car_number player_name rank top1 top3 score]
+      rows = [
+        { "race_id" => "r1", "race_date" => "2026-02-20", "venue" => "toride", "race_number" => "1", "car_number" => "1", "player_name" => "A", "rank" => "1", "top1" => "1", "top3" => "1", "score" => "0.90" },
+        { "race_id" => "r1", "race_date" => "2026-02-20", "venue" => "toride", "race_number" => "1", "car_number" => "2", "player_name" => "B", "rank" => "2", "top1" => "0", "top3" => "1", "score" => "0.80" },
+        { "race_id" => "r1", "race_date" => "2026-02-20", "venue" => "toride", "race_number" => "1", "car_number" => "3", "player_name" => "C", "rank" => "3", "top1" => "0", "top3" => "1", "score" => "0.70" }
+      ]
+      rows_top1 = [
+        rows[0].merge("score" => "0.95"),
+        rows[1].merge("score" => "0.30"),
+        rows[2].merge("score" => "0.10")
+      ]
+      write_csv(train_top3_csv, headers, rows)
+      write_csv(train_top1_csv, headers, rows_top1)
+      write_csv(valid_top3_csv, headers, rows)
+      write_csv(valid_top1_csv, headers, rows_top1)
+
+      _out, err, st = run_cmd(
+        "ruby", "scripts/learn_exotic_profile.rb",
+        "--train-top3-csv", train_top3_csv,
+        "--train-top1-csv", train_top1_csv,
+        "--train-actual-parquet", train_actual_parquet,
+        "--valid-top3-csv", valid_top3_csv,
+        "--valid-top1-csv", valid_top1_csv,
+        "--valid-actual-parquet", valid_actual_parquet,
+        "--db-path", File.join(tmp, "duckdb", "gk_yosoku.duckdb"),
+        "--temp-grid", "0.1,0.2",
+        "--exp-grid", "0.8,1.0",
+        "--objective-n", "5",
+        "--out", profile_path,
+        env: env
+      )
+      expect(st.success?).to be(true), err
+      expect(File).to exist(File.join(tmp, "train_actual_from_parquet.csv"))
+      expect(File).to exist(File.join(tmp, "valid_actual_from_parquet.csv"))
+      profile = JSON.parse(File.read(profile_path, encoding: "UTF-8"))
+      expect(profile["params"]).to be_a(Hash)
+    end
+  end
+
   it "learn_exotic_profile.rb: configを読み込みつつCLI上書きが優先される" do
     Dir.mktmpdir("spec-exotic-profile-config-") do |tmp|
       train_top3_csv = File.join(tmp, "train_top3.csv")
