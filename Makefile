@@ -55,6 +55,7 @@ HIT5_TOP1_ENCODERS ?= data/ml_top1/tuning_v2/trial_002/encoders.json
 PROFILE_SPLIT_ID ?= $(subst -,,$(FROM))_$(subst -,,$(TO))_train_to_$(subst -,,$(TRAIN_TO))
 PROFILE_MART_DIR ?= data/marts/train_valid/split_id=$(PROFILE_SPLIT_ID)
 TRAIN_DUCKDB_OPTS ?= --train-parquet $(PROFILE_MART_DIR)/train.parquet --valid-parquet $(PROFILE_MART_DIR)/valid.parquet $(DUCKDB_DB_OPTS)
+SPLIT_EMIT_CSV ?= true
 TUNE_TRAIN_PARQUET ?= $(PROFILE_MART_DIR)/train.parquet
 TUNE_VALID_PARQUET ?= $(PROFILE_MART_DIR)/valid.parquet
 TUNE_DUCKDB_OPTS ?= --train-parquet $(TUNE_TRAIN_PARQUET) --valid-parquet $(TUNE_VALID_PARQUET) $(DUCKDB_DB_OPTS)
@@ -97,7 +98,7 @@ help:
 	@echo "  make features-duckdb FROM=YYYY-MM-DD TO=YYYY-MM-DD LAKE_DIR=data/lake PARQUET_DB=data/duckdb/gk_yosoku.duckdb"
 	@echo "  make features-duckdb-sql FROM=YYYY-MM-DD TO=YYYY-MM-DD"
 	@echo "  make features (deprecated wrapper)"
-	@echo "  make split-duckdb FROM=YYYY-MM-DD TO=YYYY-MM-DD TRAIN_TO=YYYY-MM-DD"
+	@echo "  make split-duckdb FROM=YYYY-MM-DD TO=YYYY-MM-DD TRAIN_TO=YYYY-MM-DD SPLIT_EMIT_CSV=true|false"
 	@echo "  make split (deprecated wrapper)"
 	@echo "  make validate-duckdb FROM=YYYY-MM-DD TO=YYYY-MM-DD"
 	@echo "  make eval-duckdb FROM=YYYY-MM-DD TO=YYYY-MM-DD EVAL_DUCKDB_OPTS='--target-col top3'"
@@ -157,6 +158,7 @@ help:
 	@echo "  make full      FROM=YYYY-MM-DD TO=YYYY-MM-DD TRAIN_TO=YYYY-MM-DD SLEEP=0.2 CACHE=--cache"
 	@echo "  notes:"
 	@echo "    vars(shared): FROM TO WEIGHT_MODE DECAY_HALF_LIFE_DAYS MIN_SAMPLE_WEIGHT"
+	@echo "    vars(split): SPLIT_EMIT_CSV=true|false"
 	@echo "    vars(train): TOP3_FEATURE_SET=full|noplayer TOP1_FEATURE_SET=full|noplayer"
 	@echo "    vars(cv): CV_OPTS HALF_LIFE_OPTS HALF_LIFE_GRID"
 	@echo "    vars(exotic): EXOTIC_TOPS=exacta_top,trifecta_top (example: 20,50)"
@@ -293,6 +295,7 @@ split-duckdb:
 		--lake-dir $(LAKE_DIR) \
 		--out-dir data/ml \
 		--mart-dir data/marts/train_valid \
+		--emit-csv $(SPLIT_EMIT_CSV) \
 		--db-path $(PARQUET_DB)
 
 validate-duckdb:

@@ -8,19 +8,9 @@ FROM features_all
 WHERE CAST(race_date AS DATE) BETWEEN DATE '{{from_date}}'
                                 AND DATE '{{to_date}}';
 
-COPY (
-  SELECT *
-  FROM features_filtered
-  WHERE CAST(race_date AS DATE) <= DATE '{{train_to}}'
-  ORDER BY race_date, venue, CAST(race_number AS INTEGER), CAST(car_number AS INTEGER)
-) TO '{{train_csv}}' (HEADER, DELIMITER ',');
+{{train_csv_copy_sql}}
 
-COPY (
-  SELECT *
-  FROM features_filtered
-  WHERE CAST(race_date AS DATE) > DATE '{{train_to}}'
-  ORDER BY race_date, venue, CAST(race_number AS INTEGER), CAST(car_number AS INTEGER)
-) TO '{{valid_csv}}' (HEADER, DELIMITER ',');
+{{valid_csv_copy_sql}}
 
 COPY (
   SELECT *

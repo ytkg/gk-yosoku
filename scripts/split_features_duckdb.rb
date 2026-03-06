@@ -9,7 +9,7 @@ require_relative "lib/duckdb_runner"
 class DuckDBFeatureSplitter
   TEMPLATE_PATH = File.expand_path("../sql/split_train_valid.sql", __dir__)
 
-  def initialize(from_date:, to_date:, train_to:, lake_dir:, feature_set_version:, out_dir:, mart_dir:, db_path:, sql_template:)
+  def initialize(from_date:, to_date:, train_to:, lake_dir:, feature_set_version:, out_dir:, mart_dir:, db_path:, sql_template:, emit_csv:)
     @from_date = Date.iso8601(from_date)
     @to_date = Date.iso8601(to_date)
     @train_to = Date.iso8601(train_to)
@@ -22,6 +22,7 @@ class DuckDBFeatureSplitter
     @mart_dir = mart_dir
     @db_path = db_path
     @sql_template = sql_template
+    @emit_csv = emit_csv
   end
 
   def run
@@ -50,12 +51,14 @@ class DuckDBFeatureSplitter
       train_to: @train_to.iso8601,
       train_csv: train_csv,
       valid_csv: valid_csv,
+      train_csv_copy_sql: csv_copy_sql(train: true, csv_path: train_csv, train_to: @train_to.iso8601),
+      valid_csv_copy_sql: csv_copy_sql(train: false, csv_path: valid_csv, train_to: @train_to.iso8601),
       train_parquet: train_parquet,
       valid_parquet: valid_parquet
     )
 
     GK::DuckDBRunner.run_sql!(db_path: @db_path, sql: sql)
-    warn "split_id=#{split_id} train_csv=#{train_csv} valid_csv=#{valid_csv}"
+    warn "split_id=#{split_id} emit_csv=#{@emit_csv} train_csv=#{train_csv} valid_csv=#{valid_csv}"
     warn "train_parquet=#{train_parquet}"
     warn "valid_parquet=#{valid_parquet}"
   end
@@ -68,21 +71,44 @@ class DuckDBFeatureSplitter
     )
   end
 
-  def build_sql(features_glob:, from_date:, to_date:, train_to:, train_csv:, valid_csv:, train_parquet:, valid_parquet:)
+  def build_sql(features_glob:, from_date:, to_date:, train_to:, train_csv:, valid_csv:, train_csv_copy_sql:, valid_csv_copy_sql:, train_parquet:, valid_parquet:)
     template = File.read(@sql_template, encoding: "UTF-8")
-    {
+    replacements = {
       "features_glob" => features_glob,
       "from_date" => from_date,
       "to_date" => to_date,
       "train_to" => train_to,
       "train_csv" => train_csv,
       "valid_csv" => valid_csv,
+      "train_csv_copy_sql" => train_csv_copy_sql,
+      "valid_csv_copy_sql" => valid_csv_copy_sql,
       "train_parquet" => train_parquet,
       "valid_parquet" => valid_parquet
-    }.each do |key, value|
-      template = template.gsub("{{#{key}}}", value.to_s.gsub("'", "''"))
+    }
+    replacements.each do |key, value|
+      replacement =
+        if key.end_with?("_copy_sql")
+          value.to_s
+        else
+          value.to_s.gsub("'", "''")
+        end
+      template = template.gsub("{{#{key}}}", replacement)
     end
     template
+  end
+
+  def csv_copy_sql(train:, csv_path:, train_to:)
+    return "-- csv output disabled by --emit-csv=false" unless @emit_csv
+
+    op = train ? "<=" : ">"
+    <<~SQL
+      COPY (
+        SELECT *
+        FROM features_filtered
+        WHERE CAST(race_date AS DATE) #{op} DATE '#{train_to}'
+        ORDER BY race_date, venue, CAST(race_number AS INTEGER), CAST(car_number AS INTEGER)
+      ) TO '#{csv_path.gsub("'", "''")}' (HEADER, DELIMITER ',');
+    SQL
   end
 end
 
@@ -95,7 +121,8 @@ options = {
   out_dir: File.join("data", "ml"),
   mart_dir: File.join("data", "marts", "train_valid"),
   db_path: File.join("data", "duckdb", "gk_yosoku.duckdb"),
-  sql_template: DuckDBFeatureSplitter::TEMPLATE_PATH
+  sql_template: DuckDBFeatureSplitter::TEMPLATE_PATH,
+  emit_csv: true
 }
 
 parser = OptionParser.new do |opts|
@@ -109,6 +136,7 @@ parser = OptionParser.new do |opts|
   opts.on("--mart-dir DIR", "train/valid Parquet 出力先") { |v| options[:mart_dir] = v }
   opts.on("--db-path PATH", "DuckDB DB ファイルパス") { |v| options[:db_path] = v }
   opts.on("--sql-template PATH", "split SQL テンプレートファイル") { |v| options[:sql_template] = v }
+  opts.on("--emit-csv BOOL", "CSVを出力するか (default: true)") { |v| options[:emit_csv] = v.to_s.downcase == "true" }
 end
 parser.parse!
 
@@ -126,5 +154,6 @@ DuckDBFeatureSplitter.new(
   out_dir: options[:out_dir],
   mart_dir: options[:mart_dir],
   db_path: options[:db_path],
-  sql_template: options[:sql_template]
+  sql_template: options[:sql_template],
+  emit_csv: options[:emit_csv]
 ).run
