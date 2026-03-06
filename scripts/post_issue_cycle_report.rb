@@ -6,11 +6,39 @@ require "open3"
 require "optparse"
 require "time"
 
-def run!(*cmd)
-  out, err, st = Open3.capture3(*cmd)
-  raise "command failed: #{cmd.join(' ')}\n#{err}\n#{out}" unless st.success?
+def run!(*cmd, retries: 0)
+  attempt = 0
+  begin
+    attempt += 1
+    out, err, st = Open3.capture3(*cmd)
+    raise "command failed: #{cmd.join(' ')}\n#{err}\n#{out}" unless st.success?
 
-  out.force_encoding("UTF-8").encode("UTF-8", invalid: :replace, undef: :replace)
+    return out.force_encoding("UTF-8").encode("UTF-8", invalid: :replace, undef: :replace)
+  rescue StandardError => e
+    raise e if attempt > retries
+
+    sleep(0.5 * attempt)
+    retry
+  end
+end
+
+def run_gh!(*cmd)
+  run!(*cmd, retries: 2)
+rescue StandardError => e
+  raise "#{e.message}\n(gh retry exhausted)"
+end
+
+def read_closed_issues(limit:, since_time:)
+  closed_json = run_gh!(
+    "gh", "issue", "list",
+    "--state", "closed",
+    "--limit", limit.to_s,
+    "--json", "number,title,closedAt"
+  )
+  JSON.parse(closed_json)
+    .select { |i| i["closedAt"] && Time.parse(i["closedAt"]) >= since_time }
+    .sort_by { |i| i["closedAt"] }
+    .reverse
 end
 
 options = {
@@ -33,25 +61,14 @@ end.parse!
 since_time = Time.now - (options[:since_hours] * 3600)
 since_iso = since_time.utc.iso8601
 
-closed_json = run!(
-  "gh", "issue", "list",
-  "--state", "closed",
-  "--limit", options[:issues].to_s,
-  "--json", "number,title,closedAt"
-)
-closed_issues = JSON.parse(closed_json)
-  .select { |i| i["closedAt"] && Time.parse(i["closedAt"]) >= since_time }
-  .sort_by { |i| i["closedAt"] }
-  .reverse
-
-git_since = since_time.utc.strftime("%Y-%m-%dT%H:%M:%SZ")
-log_text = run!(
+closed_issues = read_closed_issues(limit: options[:issues], since_time: since_time)
+commits = run!(
   "git", "log",
-  "--since", git_since,
+  "--since", since_time.utc.strftime("%Y-%m-%dT%H:%M:%SZ"),
   "--max-count", options[:commits].to_s,
   "--pretty=format:%h %s"
 )
-commits = log_text.lines.map(&:strip).reject(&:empty?)
+commits = commits.lines.map(&:strip).reject(&:empty?)
 
 body_lines = []
 body_lines << "Issue cycle 自動レポート（直近 #{options[:since_hours]}h）"
@@ -80,5 +97,5 @@ if options[:dry_run]
   exit 0
 end
 
-run!("gh", "issue", "comment", options[:parent_issue].to_s, "--body", body)
+run_gh!("gh", "issue", "comment", options[:parent_issue].to_s, "--body", body)
 warn "posted_parent_issue=#{options[:parent_issue]}"
