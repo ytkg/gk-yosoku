@@ -132,6 +132,109 @@ RSpec.describe "exacta model scripts" do
     end
   end
 
+  it "train_exacta_lightgbm.rb: train/valid parquet指定でも実行できる" do
+    Dir.mktmpdir("spec-exacta-train-parquet-") do |tmp|
+      bin_dir = File.join(tmp, "bin")
+      create_fake_lightgbm(bin_dir)
+      env = { "PATH" => "#{bin_dir}:#{ENV.fetch('PATH', '')}" }
+
+      train_csv = File.join(tmp, "train.csv")
+      valid_csv = File.join(tmp, "valid.csv")
+      train_rows = sample_feature_rows(date: "2026-02-25", race_id: "2026-02-25-toride-01")
+      valid_rows = sample_feature_rows(date: "2026-02-26", race_id: "2026-02-26-toride-01")
+      write_csv(train_csv, feature_headers, train_rows)
+      write_csv(valid_csv, feature_headers, valid_rows)
+
+      out_dir = File.join(tmp, "ml_exacta")
+      _out1, err1, st1 = run_cmd(
+        "ruby", "scripts/build_exacta_features.rb",
+        "--train-csv", train_csv,
+        "--valid-csv", valid_csv,
+        "--out-dir", out_dir,
+        env: env
+      )
+      expect(st1.success?).to be(true), err1
+
+      create_fake_duckdb_for_exacta_parquet(
+        bin_dir,
+        File.join(out_dir, "train.csv"),
+        File.join(out_dir, "valid.csv")
+      )
+
+      train_parquet = File.join(tmp, "train.parquet")
+      valid_parquet = File.join(tmp, "valid.parquet")
+      File.write(train_parquet, "fake parquet")
+      File.write(valid_parquet, "fake parquet")
+
+      _out2, err2, st2 = run_cmd(
+        "ruby", "scripts/train_exacta_lightgbm.rb",
+        "--train-parquet", train_parquet,
+        "--valid-parquet", valid_parquet,
+        "--db-path", File.join(tmp, "duckdb", "gk_yosoku.duckdb"),
+        "--out-dir", out_dir,
+        env: env
+      )
+      expect(st2.success?).to be(true), err2
+      expect(File).to exist(File.join(out_dir, "train_from_parquet.csv"))
+      expect(File).to exist(File.join(out_dir, "valid_from_parquet.csv"))
+      expect(File).to exist(File.join(out_dir, "model.txt"))
+    end
+  end
+
+  it "evaluate_exacta_lightgbm.rb: valid-parquet指定でも実行できる" do
+    Dir.mktmpdir("spec-exacta-eval-parquet-") do |tmp|
+      bin_dir = File.join(tmp, "bin")
+      create_fake_lightgbm(bin_dir)
+      env = { "PATH" => "#{bin_dir}:#{ENV.fetch('PATH', '')}" }
+
+      train_csv = File.join(tmp, "train.csv")
+      valid_csv = File.join(tmp, "valid.csv")
+      rows = sample_feature_rows(date: "2026-02-25", race_id: "2026-02-25-toride-01")
+      write_csv(train_csv, feature_headers, rows)
+      write_csv(valid_csv, feature_headers, rows)
+
+      out_dir = File.join(tmp, "ml_exacta")
+      _out1, err1, st1 = run_cmd(
+        "ruby", "scripts/build_exacta_features.rb",
+        "--train-csv", train_csv,
+        "--valid-csv", valid_csv,
+        "--out-dir", out_dir,
+        env: env
+      )
+      expect(st1.success?).to be(true), err1
+
+      _out2, err2, st2 = run_cmd(
+        "ruby", "scripts/train_exacta_lightgbm.rb",
+        "--train-csv", File.join(out_dir, "train.csv"),
+        "--valid-csv", File.join(out_dir, "valid.csv"),
+        "--out-dir", out_dir,
+        env: env
+      )
+      expect(st2.success?).to be(true), err2
+
+      create_fake_duckdb_for_exacta_parquet(
+        bin_dir,
+        File.join(out_dir, "train.csv"),
+        File.join(out_dir, "valid.csv")
+      )
+      valid_parquet = File.join(tmp, "valid.parquet")
+      File.write(valid_parquet, "fake parquet")
+
+      _out3, err3, st3 = run_cmd(
+        "ruby", "scripts/evaluate_exacta_lightgbm.rb",
+        "--model", File.join(out_dir, "model.txt"),
+        "--valid-parquet", valid_parquet,
+        "--db-path", File.join(tmp, "duckdb", "gk_yosoku.duckdb"),
+        "--encoders", File.join(out_dir, "encoders.json"),
+        "--out-dir", out_dir,
+        env: env
+      )
+      expect(st3.success?).to be(true), err3
+      expect(File).to exist(File.join(out_dir, "valid_from_parquet.csv"))
+      expect(File).to exist(File.join(out_dir, "eval_summary.json"))
+    end
+  end
+
   def create_fake_duckdb_for_exacta_parquet(bin_dir, train_source_csv, valid_source_csv)
     FileUtils.mkdir_p(bin_dir)
     path = File.join(bin_dir, "duckdb")
