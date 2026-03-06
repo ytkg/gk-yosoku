@@ -153,6 +153,23 @@ RSpec.describe "train/eval/tune/run_timeseries_cv" do
     end
   end
 
+  it "train_lightgbm.rb: parquet/csv未指定はエラーになる" do
+    Dir.mktmpdir("spec-train-no-input-") do |tmp|
+      bin_dir = File.join(tmp, "bin")
+      create_fake_lightgbm(bin_dir)
+      env = { "PATH" => "#{bin_dir}:#{ENV.fetch('PATH', '')}" }
+
+      out_dir = File.join(tmp, "ml")
+      _out, err, st = run_cmd(
+        "ruby", "scripts/train_lightgbm.rb",
+        "--out-dir", out_dir,
+        env: env
+      )
+      expect(st.success?).to be(false)
+      expect(err).to include("train-csv is required when train-parquet is not set")
+    end
+  end
+
   it "train_lightgbm.rb: parquet指定時はcsv指定よりparquetを優先する" do
     Dir.mktmpdir("spec-train-parquet-priority-") do |tmp|
       bin_dir = File.join(tmp, "bin")
@@ -184,8 +201,7 @@ RSpec.describe "train/eval/tune/run_timeseries_cv" do
         env: env
       )
       expect(st.success?).to be(true), err
-      expect(err).to include("train-csv is ignored because train-parquet is set")
-      expect(err).to include("valid-csv is ignored because valid-parquet is set")
+      expect(err).to include("csv compatibility mode is disabled because train-parquet/valid-parquet is set")
       expect(err).to include("input_mode=parquet (train_lightgbm)")
     end
   end
