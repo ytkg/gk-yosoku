@@ -549,15 +549,16 @@ make cv-half-life-grid
 - `half_life_summary.json` の `recommended_half_life_days`
 
 出力:
-- `data/ml_cv/cv_results.csv`, `data/ml_cv/cv_summary.json`
-- `data/ml_cv_top1/cv_results.csv`, `data/ml_cv_top1/cv_summary.json`
+- `data/ml_cv/cv_results.csv`, `data/ml_cv/cv_fold_audit.json`, `data/ml_cv/cv_summary.json`
+- `data/ml_cv_top1/cv_results.csv`, `data/ml_cv_top1/cv_fold_audit.json`, `data/ml_cv_top1/cv_summary.json`
 
 確認ポイント:
 1. `cv_results.csv` の fold 数と期間が想定どおりか
 2. `cv_summary.json` の `metrics` が単発評価と大きく乖離していないか
 3. `cv_summary.json` の `input_modes`（train/eval が `parquet` になっていること）を確認する
 4. `cv_summary.json` の `feature_set_version` が想定値（通常 `v1`）かを確認する
-5. 半減期比較時は `data/ml_cv_half_life/half_life_leaderboard.csv` を見て候補を比較する
+5. `cv_fold_audit.json` の `split.id` / `split.emit_csv` / `input_mode` が全foldで揃っているか確認する
+6. 半減期比較時は `data/ml_cv_half_life/half_life_leaderboard.csv` を見て候補を比較する
 
 ### 8. 重要特徴量の確認
 

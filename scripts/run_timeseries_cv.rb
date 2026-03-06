@@ -7,6 +7,7 @@ require "fileutils"
 require "json"
 require "open3"
 require "optparse"
+require "time"
 require_relative "lib/split_summary"
 
 class TimeSeriesCVRunner
@@ -35,6 +36,7 @@ class TimeSeriesCVRunner
     raise "no folds generated. adjust train_days/valid_days/step_days/date range" if folds.empty?
 
     results = []
+    fold_audits = []
     folds.each_with_index do |fold, idx|
       fold_id = format("fold_%02d", idx + 1)
       fold_dir = File.join(@out_dir, fold_id)
@@ -70,6 +72,7 @@ class TimeSeriesCVRunner
         "top3_recall_at3" => summary["top3_recall_at3"]
       }
       results << row
+      fold_audits << fold_audit_row(fold_id: fold_id, row: row)
       warn(
         "fold=#{fold_id} train=#{row['train_from']}..#{row['train_to']} " \
         "valid=#{row['valid_from']}..#{row['valid_to']} " \
@@ -79,7 +82,7 @@ class TimeSeriesCVRunner
       )
     end
 
-    write_results(results)
+    write_results(results, fold_audits)
   end
 
   private
@@ -159,7 +162,7 @@ class TimeSeriesCVRunner
     }
   end
 
-  def write_results(rows)
+  def write_results(rows, fold_audits)
     headers = %w[
       fold train_from train_to valid_from valid_to target_col
       split_id split_emit_csv
@@ -171,10 +174,20 @@ class TimeSeriesCVRunner
       rows.each { |r| csv << headers.map { |h| r[h] } }
     end
 
+    audit_path = File.join(@out_dir, "cv_fold_audit.json")
+    audit = {
+      "schema_version" => "v1",
+      "generated_at" => Time.now.utc.iso8601,
+      "folds" => fold_audits
+    }
+    File.write(audit_path, JSON.pretty_generate(audit))
+
     summary = {
       "folds" => rows.size,
       "target_col" => @target_col,
       "feature_set_version" => @feature_set_version,
+      "audit_schema_version" => "v1",
+      "fold_audit_path" => audit_path,
       "input_modes" => {
         "train" => rows.group_by { |r| r["train_input_mode"] }.transform_values(&:size),
         "eval" => rows.group_by { |r| r["eval_input_mode"] }.transform_values(&:size)
@@ -189,7 +202,37 @@ class TimeSeriesCVRunner
     json_path = File.join(@out_dir, "cv_summary.json")
     File.write(json_path, JSON.pretty_generate(summary))
     warn "cv_results=#{path}"
+    warn "cv_fold_audit=#{audit_path}"
     warn "cv_summary=#{json_path}"
+  end
+
+  def fold_audit_row(fold_id:, row:)
+    {
+      "fold" => fold_id,
+      "range" => {
+        "train_from" => row["train_from"],
+        "train_to" => row["train_to"],
+        "valid_from" => row["valid_from"],
+        "valid_to" => row["valid_to"]
+      },
+      "split" => {
+        "id" => row["split_id"],
+        "emit_csv" => row["split_emit_csv"]
+      },
+      "input_mode" => {
+        "train" => row["train_input_mode"],
+        "eval" => row["eval_input_mode"]
+      },
+      "target_col" => row["target_col"],
+      "metrics" => {
+        "rows" => row["rows"],
+        "races" => row["races"],
+        "auc" => row["auc"],
+        "winner_hit_rate" => row["winner_hit_rate"],
+        "top3_exact_match_rate" => row["top3_exact_match_rate"],
+        "top3_recall_at3" => row["top3_recall_at3"]
+      }
+    }
   end
 
   def metric_stats(rows, key)

@@ -396,9 +396,15 @@ RSpec.describe "train/eval/tune/run_timeseries_cv" do
 
       results = CSV.read(File.join(out_dir, "cv_results.csv"), headers: true)
       summary = JSON.parse(File.read(File.join(out_dir, "cv_summary.json"), encoding: "UTF-8"))
+      audit = JSON.parse(File.read(File.join(out_dir, "cv_fold_audit.json"), encoding: "UTF-8"))
       expect(results.size).to eq(2)
       expect(summary["folds"]).to eq(2)
       expect(summary["target_col"]).to eq("top3")
+      expect(summary["audit_schema_version"]).to eq("v1")
+      expect(audit["schema_version"]).to eq("v1")
+      expect(audit["folds"].size).to eq(2)
+      expect(audit["folds"].first.dig("input_mode", "train")).to eq("parquet")
+      expect(audit["folds"].first.dig("input_mode", "eval")).to eq("parquet")
     end
   end
 
