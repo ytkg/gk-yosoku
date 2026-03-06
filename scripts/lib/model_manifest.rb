@@ -21,8 +21,8 @@ module GK
       Digest::SHA256.hexdigest(Array(feature_columns).join("\n"))
     end
 
-    def build(model_id:, target_col:, feature_set_version:, feature_columns:, train_from:, train_to:, valid_from:, valid_to:, metrics:)
-      {
+    def build(model_id:, target_col:, feature_set_version:, feature_columns:, train_from:, train_to:, valid_from:, valid_to:, metrics:, data_source_mode: nil)
+      manifest = {
         "model_id" => model_id,
         "target_col" => target_col,
         "feature_set_version" => feature_set_version,
@@ -37,6 +37,8 @@ module GK
         },
         "metrics" => metrics
       }
+      manifest["data_source_mode"] = data_source_mode unless data_source_mode.nil?
+      manifest
     end
 
     def load(path)
@@ -82,6 +84,7 @@ module GK
         "model_id" => manifest["model_id"],
         "target_col" => manifest["target_col"],
         "feature_set_version" => manifest["feature_set_version"],
+        "data_source_mode" => manifest["data_source_mode"],
         "feature_columns_digest" => manifest["feature_columns_digest"],
         "train_window" => manifest["train_window"],
         "valid_window" => manifest["valid_window"]

@@ -108,6 +108,7 @@ RSpec.describe "exacta model scripts" do
       GK::ModelManifest::REQUIRED_KEYS.each do |key|
         expect(manifest).to have_key(key)
       end
+      expect(manifest["data_source_mode"]).to eq("csv")
 
       _out3, err3, st3 = run_cmd(
         "ruby", "scripts/evaluate_exacta_lightgbm.rb",

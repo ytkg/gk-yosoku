@@ -213,7 +213,8 @@ class ExactaLightGBMTrainer
       train_to: train_dates.max.iso8601,
       valid_from: valid_dates.min.iso8601,
       valid_to: valid_dates.max.iso8601,
-      metrics: {}
+      metrics: {},
+      data_source_mode: infer_input_mode
     )
     GK::ModelManifest.validate_required_keys!(manifest)
     path = File.join(@out_dir, "model_manifest.json")
@@ -249,6 +250,12 @@ class ExactaLightGBMTrainer
 
   def extract_metrics(summary)
     summary.slice("auc", "rows", "races", "hit_at")
+  end
+
+  def infer_input_mode
+    return "parquet" unless @train_parquet.nil? || @train_parquet.empty?
+
+    "csv"
   end
 end
 

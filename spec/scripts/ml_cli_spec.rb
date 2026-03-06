@@ -33,6 +33,7 @@ RSpec.describe "train/eval/tune/run_timeseries_cv" do
       GK::ModelManifest::REQUIRED_KEYS.each do |key|
         expect(manifest).to have_key(key)
       end
+      expect(manifest["data_source_mode"]).to eq("csv")
 
       _out2, err2, st2 = run_cmd(
         "ruby", "scripts/evaluate_lightgbm.rb",

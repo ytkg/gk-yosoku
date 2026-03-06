@@ -227,6 +227,8 @@ manifest確認:
 make manifest-inspect MODEL_DIR=data/ml
 ```
 
+`model_manifest.json` には `data_source_mode`（`csv` / `parquet`）も記録されます。
+
 ## 主要コマンド（Makefile前提）
 
 ### 1. データ取得

@@ -219,7 +219,8 @@ class LightGBMTrainer
       train_to: train_dates.max.iso8601,
       valid_from: valid_dates.min.iso8601,
       valid_to: valid_dates.max.iso8601,
-      metrics: {}
+      metrics: {},
+      data_source_mode: infer_input_mode
     )
     manifest["input_mode"] = infer_input_mode
     GK::ModelManifest.validate_required_keys!(manifest)
