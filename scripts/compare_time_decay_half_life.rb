@@ -9,7 +9,9 @@ require "optparse"
 require "rbconfig"
 
 class HalfLifeComparer
-  def initialize(from_date:, to_date:, train_days:, valid_days:, step_days:, half_lives:, min_sample_weight:, lake_dir:, db_path:, feature_set_version:, target_col:, out_dir:, cv_script:)
+  SORT_METRICS = %w[winner_hit_rate_mean auc_mean top3_exact_match_rate_mean top3_recall_at3_mean].freeze
+
+  def initialize(from_date:, to_date:, train_days:, valid_days:, step_days:, half_lives:, min_sample_weight:, lake_dir:, db_path:, feature_set_version:, target_col:, out_dir:, cv_script:, sort_metric:)
     @from_date = from_date
     @to_date = to_date
     @train_days = train_days
@@ -23,6 +25,8 @@ class HalfLifeComparer
     @target_col = target_col
     @out_dir = out_dir
     @cv_script = cv_script
+    @sort_metric = sort_metric
+    raise "invalid sort_metric: #{@sort_metric}" unless SORT_METRICS.include?(@sort_metric)
   end
 
   def run
@@ -47,7 +51,7 @@ class HalfLifeComparer
       }
     end
 
-    ranked = rows.sort_by { |r| [-r.fetch("winner_hit_rate_mean", 0.0), -r.fetch("auc_mean", 0.0)] }
+    ranked = rows.sort_by { |r| [-r.fetch(@sort_metric, 0.0), -r.fetch("winner_hit_rate_mean", 0.0), -r.fetch("auc_mean", 0.0)] }
     write_outputs(ranked)
   end
 
@@ -99,7 +103,7 @@ class HalfLifeComparer
         "lake_dir" => @lake_dir,
         "db_path" => @db_path,
         "feature_set_version" => @feature_set_version
-      },
+      }.merge("sort_metric" => @sort_metric),
       "best" => best,
       "rows" => rows
     }
@@ -125,7 +129,8 @@ options = {
   feature_set_version: "v1",
   target_col: "top3",
   out_dir: File.join("data", "ml_cv_half_life"),
-  cv_script: File.join("scripts", "run_timeseries_cv.rb")
+  cv_script: File.join("scripts", "run_timeseries_cv.rb"),
+  sort_metric: "winner_hit_rate_mean"
 }
 
 parser = OptionParser.new do |opts|
@@ -143,6 +148,7 @@ parser = OptionParser.new do |opts|
   opts.on("--target-col NAME", "top3 or top1 (default: top3)") { |v| options[:target_col] = v }
   opts.on("--out-dir DIR", "出力先 (default: data/ml_cv_half_life)") { |v| options[:out_dir] = v }
   opts.on("--cv-script PATH", "CV実行スクリプト (default: scripts/run_timeseries_cv.rb)") { |v| options[:cv_script] = v }
+  opts.on("--sort-metric NAME", "ranking metric: #{HalfLifeComparer::SORT_METRICS.join(', ')}") { |v| options[:sort_metric] = v }
 end
 parser.parse!
 
@@ -165,5 +171,6 @@ HalfLifeComparer.new(
   feature_set_version: options[:feature_set_version],
   target_col: options[:target_col],
   out_dir: options[:out_dir],
-  cv_script: options[:cv_script]
+  cv_script: options[:cv_script],
+  sort_metric: options[:sort_metric]
 ).run

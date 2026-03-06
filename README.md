@@ -524,6 +524,9 @@ make cv-top1-noplayer FROM=2025-01-01 TO=2026-02-25 \
 
 # 半減期候補を一括比較（time_decay固定）
 make cv-half-life-grid FROM=2025-01-01 TO=2026-02-25 HALF_LIFE_GRID="60,90,120,180"
+
+# 並び替え指標を変更する場合（例: top3_exact_match_rate_mean）
+make cv-half-life-grid HALF_LIFE_OPTS="--sort-metric top3_exact_match_rate_mean"
 ```
 
 最小実行例（Makefile既定の期間を利用）:
