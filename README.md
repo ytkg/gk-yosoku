@@ -515,6 +515,7 @@ make cv-half-life-grid
 半減期比較ジョブの主な出力:
 - `data/ml_cv_half_life/half_life_leaderboard.csv`
 - `data/ml_cv_half_life/half_life_summary.json`
+- `half_life_summary.json` の `recommended_half_life_days`
 
 出力:
 - `data/ml_cv/cv_results.csv`, `data/ml_cv/cv_summary.json`

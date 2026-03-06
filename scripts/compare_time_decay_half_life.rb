@@ -87,6 +87,7 @@ class HalfLifeComparer
     summary = {
       "target_col" => @target_col,
       "candidates" => rows.size,
+      "recommended_half_life_days" => best["half_life_days"],
       "options" => {
         "from_date" => @from_date,
         "to_date" => @to_date,
@@ -107,7 +108,7 @@ class HalfLifeComparer
 
     warn "leaderboard=#{leaderboard_csv}"
     warn "summary=#{summary_json}"
-    warn "best_half_life_days=#{best['half_life_days']}"
+    warn "recommended_half_life_days=#{best['half_life_days']}"
   end
 end
 
