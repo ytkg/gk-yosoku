@@ -128,17 +128,8 @@ class TimeSeriesCVRunner
       raise "split parquet outputs are required for cv train: #{split_outputs}"
     end
 
-    cmd = [
-      "ruby", "scripts/train_lightgbm.rb",
-      "--out-dir", model_dir,
-      "--target-col", @target_col,
-      "--weight-mode", @weight_mode.to_s,
-      "--decay-half-life-days", @decay_half_life_days.to_s,
-      "--min-sample-weight", @min_sample_weight.to_s
-    ]
-    cmd += ["--train-parquet", split_outputs[:train_parquet], "--valid-parquet", split_outputs[:valid_parquet], "--db-path", @db_path]
+    cmd = train_command(model_dir, split_outputs)
     input_mode = "parquet"
-    cmd += ["--drop-features", @drop_features.join(",")] unless @drop_features.empty?
     run_cmd!(cmd)
     input_mode
   end
@@ -148,14 +139,7 @@ class TimeSeriesCVRunner
       raise "split parquet output is required for cv eval: #{split_outputs[:valid_parquet]}"
     end
 
-    cmd = [
-      "ruby", "scripts/evaluate_lightgbm.rb",
-      "--model", File.join(model_dir, "model.txt"),
-      "--encoders", File.join(model_dir, "encoders.json"),
-      "--out-dir", eval_dir,
-      "--target-col", @target_col
-    ]
-    cmd += ["--valid-parquet", split_outputs[:valid_parquet], "--db-path", @db_path]
+    cmd = eval_command(model_dir, eval_dir, split_outputs)
     input_mode = "parquet"
     run_cmd!(cmd)
     [JSON.parse(File.read(File.join(eval_dir, "eval_summary.json"), encoding: "UTF-8")), input_mode]
@@ -216,6 +200,34 @@ class TimeSeriesCVRunner
     return if status.success?
 
     raise "command failed: #{cmd.join(' ')}\n#{err}\n#{out}"
+  end
+
+  def train_command(model_dir, split_outputs)
+    cmd = [
+      "ruby", "scripts/train_lightgbm.rb",
+      "--out-dir", model_dir,
+      "--target-col", @target_col,
+      "--weight-mode", @weight_mode.to_s,
+      "--decay-half-life-days", @decay_half_life_days.to_s,
+      "--min-sample-weight", @min_sample_weight.to_s,
+      "--train-parquet", split_outputs[:train_parquet],
+      "--valid-parquet", split_outputs[:valid_parquet],
+      "--db-path", @db_path
+    ]
+    cmd += ["--drop-features", @drop_features.join(",")] unless @drop_features.empty?
+    cmd
+  end
+
+  def eval_command(model_dir, eval_dir, split_outputs)
+    [
+      "ruby", "scripts/evaluate_lightgbm.rb",
+      "--model", File.join(model_dir, "model.txt"),
+      "--encoders", File.join(model_dir, "encoders.json"),
+      "--out-dir", eval_dir,
+      "--target-col", @target_col,
+      "--valid-parquet", split_outputs[:valid_parquet],
+      "--db-path", @db_path
+    ]
   end
 end
 
