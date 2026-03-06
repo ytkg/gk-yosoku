@@ -62,6 +62,19 @@ make sync-next-issue
 gh issue list --state open
 ```
 
+Parquet標準クイックレシピ（10行以内）:
+
+```bash
+make parquet-bootstrap FROM=2025-01-01 TO=2026-02-25
+make features-duckdb FROM=2025-01-01 TO=2026-02-25
+make split-duckdb FROM=2025-01-01 TO=2026-02-25 TRAIN_TO=2026-01-31 SPLIT_EMIT_CSV=false
+make train
+make train-top1
+make eval-duckdb FROM=2026-02-01 TO=2026-02-25
+make exotic
+make eval-exotic
+```
+
 1. 最短DuckDB学習ルート  
 前提: `data/raw/*.csv` があること（未取得なら先に `make collect`）。
 
