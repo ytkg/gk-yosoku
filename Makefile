@@ -170,8 +170,9 @@ issue-cycle:
 	@echo "  4) Issueに完了コメント（コミットID/検証結果）"
 	@echo "  5) 子Issueをクローズ"
 	@echo "  6) 改善Issueを1件以上起票"
-	@echo "  7) 親Issue #32 を更新"
-	@echo "  8) open issue を確認（gh issue list --state open）"
+	@echo "  7) exotics閾値や温度を更新した場合は make optimize-exotic-hitk を実行"
+	@echo "  8) 親Issue #32 を更新"
+	@echo "  9) open issue を確認（gh issue list --state open）"
 
 build:
 	docker build -t $(IMAGE) .

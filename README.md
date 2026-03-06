@@ -660,6 +660,7 @@ make predict-exacta RACE_URL="https://keirin.kdreams.jp/toride/racedetail/232026
 - `--config` 併用時にCLIで上書きしたキーは `config.cli_overrides` に記録されます。
 - `EXOTIC_TOPS` は `exacta_top,trifecta_top` の順で指定します（例: `20,50`）。
 - `optimize-exotic-hitk` の評価結果は既定で `data/ml/exotic_eval_summary_optimized_hitk.json` に出力されます。
+- `EXOTIC_TOPS` や温度パラメータを更新したサイクルでは、Issueクローズ前に `make optimize-exotic-hitk` を実行してください。
 
 現時点の検証結果（validデータ）:
 
