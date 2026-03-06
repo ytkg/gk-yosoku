@@ -135,6 +135,12 @@ make full FROM=2025-01-01 TO=2026-02-25 TRAIN_TO=2026-01-31 SLEEP=0.2
 - `EXOTIC_TOPS`  
   既定: `20,50`（`optimize-exotic-hitk` の `exacta_top,trifecta_top` 指定）
 
+推奨の共通命名（train/eval/tune/cv で統一）:
+1. 実行期間: `FROM` / `TO`（CLIでは `--from-date` / `--to-date`）
+2. 重み付け: `WEIGHT_MODE` / `DECAY_HALF_LIFE_DAYS` / `MIN_SAMPLE_WEIGHT`
+3. split入力: `TRAIN_DUCKDB_OPTS` / `TUNE_DUCKDB_OPTS`（Parquet優先）
+4. CVウィンドウ: `CV_OPTS`（`--train-days` / `--valid-days` / `--step-days`）
+
 上書き例:
 
 ```bash
