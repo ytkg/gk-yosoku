@@ -174,6 +174,8 @@ help:
 	@echo "    vars(shared): FROM TO WEIGHT_MODE DECAY_HALF_LIFE_DAYS MIN_SAMPLE_WEIGHT"
 	@echo "    vars(split): SPLIT_EMIT_CSV=true|false"
 	@echo "    vars(split): SPLIT_SUMMARY_JSON=data/ml/split_summary.json"
+	@echo "    vars(eval): EVAL_DUCKDB_MODEL EVAL_DUCKDB_ENCODERS EVAL_DUCKDB_OUT_DIR EVAL_DUCKDB_TARGET_COL EVAL_DUCKDB_OPTS"
+	@echo "    vars(tune): TUNE_DUCKDB_OPTS TUNE_TRAIN_PARQUET TUNE_VALID_PARQUET"
 	@echo "    vars(train): TOP3_FEATURE_SET=full|noplayer TOP1_FEATURE_SET=full|noplayer"
 	@echo "    vars(cv): CV_OPTS HALF_LIFE_OPTS HALF_LIFE_GRID"
 	@echo "    vars(exotic): EXOTIC_TOPS=exacta_top,trifecta_top (example: 20,50)"
