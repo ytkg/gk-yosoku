@@ -4,10 +4,13 @@
 require "csv"
 require "json"
 require "optparse"
+require_relative "lib/duckdb_runner"
 
 class ExoticEvaluator
-  def initialize(actual_csv:, exacta_csv:, trifecta_csv:, out_path:, ns:, payout_csv:, unit:)
+  def initialize(actual_csv:, actual_parquet:, db_path:, exacta_csv:, trifecta_csv:, out_path:, ns:, payout_csv:, unit:)
     @actual_csv = actual_csv
+    @actual_parquet = actual_parquet
+    @db_path = db_path
     @exacta_csv = exacta_csv
     @trifecta_csv = trifecta_csv
     @out_path = out_path
@@ -38,7 +41,7 @@ class ExoticEvaluator
   private
 
   def build_actual_by_race
-    rows = CSV.read(@actual_csv, headers: true, encoding: "UTF-8").map(&:to_h)
+    rows = CSV.read(resolved_actual_csv, headers: true, encoding: "UTF-8").map(&:to_h)
     grouped = rows.group_by { |r| r["race_id"] }
     grouped.each_with_object({}) do |(race_id, rs), h|
       normal_rows = rs.select { |r| r["rank"].to_s.match?(/\A[1-7]\z/) }
@@ -53,6 +56,28 @@ class ExoticEvaluator
         trifecta: [first, second, third]
       }
     end
+  end
+
+  def resolved_actual_csv
+    return @actual_csv if @actual_parquet.nil? || @actual_parquet.empty?
+
+    warn "actual input mode=parquet"
+    materialized = File.join(File.dirname(@out_path), "actual_from_parquet.csv")
+    materialize_parquet_to_csv(@actual_parquet, materialized)
+  end
+
+  def materialize_parquet_to_csv(parquet_path, out_csv_path)
+    GK::DuckDBRunner.ensure_duckdb!(message: "duckdb command not found for parquet input")
+    sql = <<~SQL
+      COPY (
+        SELECT *
+        FROM read_parquet(#{GK::DuckDBRunner.sql_quote(parquet_path)})
+      )
+      TO #{GK::DuckDBRunner.sql_quote(out_csv_path)}
+      (HEADER, DELIMITER ',');
+    SQL
+    GK::DuckDBRunner.run_sql!(db_path: @db_path, sql: sql)
+    out_csv_path
   end
 
   def read_pred_by_race(path, kind)
@@ -127,6 +152,8 @@ end
 
 options = {
   actual_csv: File.join("data", "ml", "valid.csv"),
+  actual_parquet: nil,
+  db_path: File.join("data", "duckdb", "gk_yosoku.duckdb"),
   exacta_csv: File.join("data", "ml", "exacta_pred.csv"),
   trifecta_csv: File.join("data", "ml", "trifecta_pred.csv"),
   out_path: File.join("data", "ml", "exotic_eval_summary.json"),
@@ -137,7 +164,9 @@ options = {
 
 parser = OptionParser.new do |opts|
   opts.banner = "Usage: ruby scripts/evaluate_exotics.rb [options]"
-  opts.on("--actual-csv PATH", "actual results CSV (default: data/ml/valid.csv)") { |v| options[:actual_csv] = v }
+  opts.on("--actual-csv PATH", "actual results CSV (compatibility mode, default: data/ml/valid.csv)") { |v| options[:actual_csv] = v }
+  opts.on("--actual-parquet PATH", "actual results parquet (recommended)") { |v| options[:actual_parquet] = v }
+  opts.on("--db-path PATH", "DuckDB DB file path for parquet input") { |v| options[:db_path] = v }
   opts.on("--exacta-csv PATH", "exacta prediction CSV (default: data/ml/exacta_pred.csv)") { |v| options[:exacta_csv] = v }
   opts.on("--trifecta-csv PATH", "trifecta prediction CSV (default: data/ml/trifecta_pred.csv)") { |v| options[:trifecta_csv] = v }
   opts.on("--out PATH", "output summary JSON path (default: data/ml/exotic_eval_summary.json)") { |v| options[:out_path] = v }
@@ -151,6 +180,8 @@ raise "ns is empty" if options[:ns].empty?
 
 ExoticEvaluator.new(
   actual_csv: options[:actual_csv],
+  actual_parquet: options[:actual_parquet],
+  db_path: options[:db_path],
   exacta_csv: options[:exacta_csv],
   trifecta_csv: options[:trifecta_csv],
   out_path: options[:out_path],

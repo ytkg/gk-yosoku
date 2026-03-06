@@ -566,6 +566,14 @@ docker run --rm -v "$PWD:/app" -w /app gk-yosoku ruby scripts/evaluate_exotics.r
 docker run --rm -v "$PWD:/app" -w /app gk-yosoku ruby scripts/evaluate_exotics.rb --ns 1,5,10,20,50
 ```
 
+actual を Parquet で評価する場合:
+
+```bash
+docker run --rm -v "$PWD:/app" -w /app gk-yosoku ruby scripts/evaluate_exotics.rb \
+  --actual-parquet data/marts/train_valid/split_id=YYYYMMDD_YYYYMMDD_train_to_YYYYMMDD/valid.parquet \
+  --db-path data/duckdb/gk_yosoku.duckdb
+```
+
 ### 10. レースURLから実予想を出す
 
 ```bash

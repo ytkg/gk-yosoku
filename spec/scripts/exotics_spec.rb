@@ -51,6 +51,48 @@ RSpec.describe "generate/evaluate/learn exotics" do
     end
   end
 
+  it "evaluate_exotics.rb: actual-parquet指定でも評価できる" do
+    Dir.mktmpdir("spec-exotic-eval-parquet-") do |tmp|
+      bin_dir = File.join(tmp, "bin")
+      create_fake_duckdb_for_exotics(bin_dir)
+      env = { "PATH" => "#{bin_dir}:#{ENV.fetch('PATH', '')}" }
+
+      out_dir = File.join(tmp, "ml")
+      FileUtils.mkdir_p(out_dir)
+      exacta_csv = File.join(out_dir, "exacta_pred.csv")
+      trifecta_csv = File.join(out_dir, "trifecta_pred.csv")
+      write_csv(
+        exacta_csv,
+        %w[race_id first_car_number second_car_number score],
+        [{ "race_id" => "r1", "first_car_number" => "1", "second_car_number" => "2", "score" => "0.9" }]
+      )
+      write_csv(
+        trifecta_csv,
+        %w[race_id first_car_number second_car_number third_car_number score],
+        [{ "race_id" => "r1", "first_car_number" => "1", "second_car_number" => "2", "third_car_number" => "3", "score" => "0.8" }]
+      )
+
+      actual_parquet = File.join(tmp, "valid.parquet")
+      File.write(actual_parquet, "fake parquet")
+      summary_path = File.join(out_dir, "exotic_eval_summary.json")
+      _out, err, st = run_cmd(
+        "ruby", "scripts/evaluate_exotics.rb",
+        "--actual-parquet", actual_parquet,
+        "--db-path", File.join(tmp, "duckdb", "gk_yosoku.duckdb"),
+        "--exacta-csv", exacta_csv,
+        "--trifecta-csv", trifecta_csv,
+        "--out", summary_path,
+        "--ns", "1",
+        env: env
+      )
+      expect(st.success?).to be(true), err
+      expect(File).to exist(File.join(out_dir, "actual_from_parquet.csv"))
+      summary = JSON.parse(File.read(summary_path, encoding: "UTF-8"))
+      expect(summary["races"]).to eq(1)
+      expect(summary.dig("exacta", "hit_at", "1")).to eq(1.0)
+    end
+  end
+
   it "hit@5向けプロファイルを学習しgenerate_exoticsで利用できる" do
     Dir.mktmpdir("spec-exotic-profile-") do |tmp|
       train_top3_csv = File.join(tmp, "train_top3.csv")
@@ -359,5 +401,25 @@ RSpec.describe "generate/evaluate/learn exotics" do
       expect(st.success?).to be(false)
       expect(err).to include("input is empty")
     end
+  end
+
+  def create_fake_duckdb_for_exotics(bin_dir)
+    FileUtils.mkdir_p(bin_dir)
+    path = File.join(bin_dir, "duckdb")
+    File.write(path, <<~'SCRIPT')
+      #!/usr/bin/env ruby
+      require "fileutils"
+
+      sql = STDIN.read
+      sql.scan(/TO\s+'([^']+)'/i).flatten.each do |out_path|
+        FileUtils.mkdir_p(File.dirname(out_path))
+        next unless out_path.end_with?(".csv")
+
+        File.write(out_path, "race_id,race_date,venue,race_number,car_number,player_name,rank,top1,top3,mark_symbol,leg_style\nr1,2026-02-26,toride,1,1,A,1,1,1,◎,逃\nr1,2026-02-26,toride,1,2,B,2,0,1,○,追\nr1,2026-02-26,toride,1,3,C,3,0,1,▲,両\n")
+      end
+      puts "duckdb ok"
+    SCRIPT
+    FileUtils.chmod("u+x", path)
+    path
   end
 end
