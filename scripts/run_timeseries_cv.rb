@@ -46,8 +46,8 @@ class TimeSeriesCVRunner
 
       run_split!(split_dir, fold)
       split_outputs = split_output_paths(split_dir, fold)
-      train_input_mode = run_train!(split_dir, split_outputs, model_dir)
-      summary, eval_input_mode = run_eval!(split_dir, split_outputs, model_dir, eval_dir)
+      train_input_mode = run_train!(split_outputs, model_dir)
+      summary, eval_input_mode = run_eval!(split_outputs, model_dir, eval_dir)
 
       row = {
         "fold" => fold_id,
@@ -123,7 +123,11 @@ class TimeSeriesCVRunner
     run_cmd!(cmd)
   end
 
-  def run_train!(split_dir, split_outputs, model_dir)
+  def run_train!(split_outputs, model_dir)
+    unless split_outputs.values_at(:train_parquet, :valid_parquet).all? { |path| File.exist?(path) }
+      raise "split parquet outputs are required for cv train: #{split_outputs}"
+    end
+
     cmd = [
       "ruby", "scripts/train_lightgbm.rb",
       "--out-dir", model_dir,
@@ -132,19 +136,18 @@ class TimeSeriesCVRunner
       "--decay-half-life-days", @decay_half_life_days.to_s,
       "--min-sample-weight", @min_sample_weight.to_s
     ]
-    if split_outputs.values_at(:train_parquet, :valid_parquet).all? { |path| File.exist?(path) }
-      cmd += ["--train-parquet", split_outputs[:train_parquet], "--valid-parquet", split_outputs[:valid_parquet], "--db-path", @db_path]
-      input_mode = "parquet"
-    else
-      cmd += ["--train-csv", File.join(split_dir, "train.csv"), "--valid-csv", File.join(split_dir, "valid.csv")]
-      input_mode = "csv"
-    end
+    cmd += ["--train-parquet", split_outputs[:train_parquet], "--valid-parquet", split_outputs[:valid_parquet], "--db-path", @db_path]
+    input_mode = "parquet"
     cmd += ["--drop-features", @drop_features.join(",")] unless @drop_features.empty?
     run_cmd!(cmd)
     input_mode
   end
 
-  def run_eval!(split_dir, split_outputs, model_dir, eval_dir)
+  def run_eval!(split_outputs, model_dir, eval_dir)
+    unless File.exist?(split_outputs[:valid_parquet])
+      raise "split parquet output is required for cv eval: #{split_outputs[:valid_parquet]}"
+    end
+
     cmd = [
       "ruby", "scripts/evaluate_lightgbm.rb",
       "--model", File.join(model_dir, "model.txt"),
@@ -152,13 +155,8 @@ class TimeSeriesCVRunner
       "--out-dir", eval_dir,
       "--target-col", @target_col
     ]
-    if File.exist?(split_outputs[:valid_parquet])
-      cmd += ["--valid-parquet", split_outputs[:valid_parquet], "--db-path", @db_path]
-      input_mode = "parquet"
-    else
-      cmd += ["--valid-csv", File.join(split_dir, "valid.csv")]
-      input_mode = "csv"
-    end
+    cmd += ["--valid-parquet", split_outputs[:valid_parquet], "--db-path", @db_path]
+    input_mode = "parquet"
     run_cmd!(cmd)
     [JSON.parse(File.read(File.join(eval_dir, "eval_summary.json"), encoding: "UTF-8")), input_mode]
   end

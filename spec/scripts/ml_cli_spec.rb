@@ -371,7 +371,7 @@ RSpec.describe "train/eval/tune/run_timeseries_cv" do
     end
   end
 
-  it "run_timeseries_cv.rb: parquet未生成時はcsvフォールバック経路を記録する" do
+  it "run_timeseries_cv.rb: parquet未生成時はエラーにする" do
     Dir.mktmpdir("spec-cv-csv-fallback-") do |tmp|
       bin_dir = File.join(tmp, "bin")
       create_fake_lightgbm(bin_dir)
@@ -408,11 +408,8 @@ RSpec.describe "train/eval/tune/run_timeseries_cv" do
         "--target-col", "top3",
         env: env
       )
-      expect(st.success?).to be(true), err
-
-      summary = JSON.parse(File.read(File.join(out_dir, "cv_summary.json"), encoding: "UTF-8"))
-      expect(summary.dig("input_modes", "train", "csv")).to eq(1)
-      expect(summary.dig("input_modes", "eval", "csv")).to eq(1)
+      expect(st.success?).to be(false)
+      expect(err).to include("split parquet outputs are required for cv train")
     end
   end
 
