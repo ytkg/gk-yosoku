@@ -168,6 +168,10 @@ help:
 	@echo "    vars(train): TOP3_FEATURE_SET=full|noplayer TOP1_FEATURE_SET=full|noplayer"
 	@echo "    vars(cv): CV_OPTS HALF_LIFE_OPTS HALF_LIFE_GRID"
 	@echo "    vars(exotic): EXOTIC_TOPS=exacta_top,trifecta_top (example: 20,50)"
+	@echo "  compatibility mode:"
+	@echo "    split csv emit: make split-duckdb SPLIT_EMIT_CSV=true"
+	@echo "    csv direct train/eval: use TOP3_TRAIN_OPTS/TOP1_TRAIN_OPTS and TOP3_EVAL_OPTS/TOP1_EVAL_OPTS to override"
+	@echo "    docs: README の『Make変数』節を参照"
 	@echo "    noplayer quick map: train-top3-noplayer train-top1-noplayer tune-top3-noplayer tune-top1-noplayer cv-top3-noplayer cv-top1-noplayer"
 	@echo "    issue-cycle: includes final open-issue check"
 
