@@ -308,3 +308,28 @@ make cv-top1 FROM=2025-01-01 TO=2026-02-25 \
 3. [P2] time-decay の半減期をCV平均で探索し、既定値を再設定する
 4. [P2] `top1` と `top3` の特徴量セット分岐最適化（モデル目的に合わせた削減/追加）
 5. [P2] エキゾチック指標（exacta/trifecta hit@k）を直接最適化する探索ジョブを整備する
+
+## train.csv / valid.csv 依存縮退の棚卸し（2026-03-06）
+
+### P1（先行着手）
+
+1. 学習/評価/CVの主要経路
+   - `scripts/train_lightgbm.rb`
+   - `scripts/evaluate_lightgbm.rb`
+   - `scripts/tune_lightgbm.rb`
+   - `scripts/run_timeseries_cv.rb`
+2. 互換CSVを生成する分割経路
+   - `scripts/split_features_duckdb.rb`
+   - `Makefile`（`train`, `eval`, `tune`, `cv` の `--train-csv` / `--valid-csv` 受け渡し）
+
+### P2（P1完了後）
+
+1. exotic/exacta 系のCSV依存
+   - `scripts/build_exacta_features.rb`
+   - `scripts/train_exacta_lightgbm.rb`
+   - `scripts/evaluate_exacta_lightgbm.rb`
+   - `scripts/evaluate_exotics.rb`
+   - `scripts/learn_exotic_profile.rb`
+2. ドキュメント上の互換CSV説明の縮退
+   - `README.md`
+   - `docs/project-plan.md`
