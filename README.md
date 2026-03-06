@@ -259,7 +259,7 @@ make restore-duckdb SRC=data/duckdb_backup/gk_yosoku_YYYYMMDDTHHMMSSZ.duckdb
 - `make parquet-bootstrap`: `data/raw/*.csv` から `data/lake` に Parquet を作成
 - `make features-duckdb`: 既定は `sql_v1` モード（`data/lake/raw_results` から SQL 主導で features CSV/Parquet を生成）
 - `make features-duckdb-sql`: `make features-duckdb FEATURES_DUCKDB_MODE=sql_v1` のエイリアス
-- `make split-duckdb`: `data/lake/features` から `train.csv` / `valid.csv` と mart Parquet を作成
+- `make split-duckdb`: `data/lake/features` から mart Parquet を作成（`train.csv` / `valid.csv` は互換用途）
 - `make validate-duckdb`: CSV features と Parquet features の差分検証レポートを作成
 - `make eval-duckdb`: Parquet features から検証Parquetを生成し、`evaluate_lightgbm.rb --valid-parquet` で評価
 - `make backup-duckdb`: DuckDB本体のバックアップを作成
@@ -829,8 +829,8 @@ make collect FROM=2026-01-01 TO=2026-02-25 CACHE=--no-cache SLEEP=0.1
 ### 特徴量・学習・評価
 
 - `data/features/features_YYYYMMDD.csv`
-- `data/ml/train.csv`
-- `data/ml/valid.csv`
+- `data/ml/train.csv`（互換用途）
+- `data/ml/valid.csv`（互換用途）
 - `data/ml/model.txt`
 - `data/ml/encoders.json`
 - `data/ml/valid_pred.csv`
@@ -839,8 +839,8 @@ make collect FROM=2026-01-01 TO=2026-02-25 CACHE=--no-cache SLEEP=0.1
 - `data/ml_top1/encoders.json`
 - `data/ml_top1/valid_pred.csv`
 - `data/ml_top1/eval_summary.json`
-- `data/ml_exacta/train.csv`
-- `data/ml_exacta/valid.csv`
+- `data/ml_exacta/train.csv`（互換用途）
+- `data/ml_exacta/valid.csv`（互換用途）
 - `data/ml_exacta/model.txt`
 - `data/ml_exacta/encoders.json`
 - `data/ml_exacta/valid_pair_pred.csv`

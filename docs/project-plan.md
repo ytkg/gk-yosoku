@@ -227,7 +227,7 @@ make cv-top1 FROM=2025-01-01 TO=2026-02-25 \
 
 ### 学習・評価出力
 
-- `data/ml/train.csv`, `data/ml/valid.csv`（学習器入力CSV）
+- `data/ml/train.csv`, `data/ml/valid.csv`（互換用途CSV）
 - `data/marts/train_valid/split_id=.../train.parquet`, `data/marts/train_valid/split_id=.../valid.parquet`（分割結果Parquet）
 - `data/ml/model.txt`
 - `data/ml/encoders.json`
@@ -239,7 +239,7 @@ make cv-top1 FROM=2025-01-01 TO=2026-02-25 \
 - `data/ml_top1/encoders.json`
 - `data/ml_top1/valid_pred.csv`
 - `data/ml_top1/eval_summary.json`
-- `data/ml_exacta/train.csv`, `data/ml_exacta/valid.csv`
+- `data/ml_exacta/train.csv`, `data/ml_exacta/valid.csv`（互換用途CSV）
 - `data/ml_exacta/model.txt`
 - `data/ml_exacta/encoders.json`
 - `data/ml_exacta/valid_pair_pred.csv`
@@ -248,7 +248,7 @@ make cv-top1 FROM=2025-01-01 TO=2026-02-25 \
 
 補足:
 1. 標準運用の一次データは Parquet（lake/marts）を使う
-2. CSVは学習器互換と一部下流処理のために生成する
+2. CSVは互換モードと一部下流処理のために限定生成する
 3. `make features` / `make split` / `make eval` は互換用途の deprecated wrapper として残置する
 
 ## 検証方針
