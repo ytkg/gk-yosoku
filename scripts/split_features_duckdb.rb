@@ -144,7 +144,7 @@ options = {
   mart_dir: File.join("data", "marts", "train_valid"),
   db_path: File.join("data", "duckdb", "gk_yosoku.duckdb"),
   sql_template: DuckDBFeatureSplitter::TEMPLATE_PATH,
-  emit_csv: true
+  emit_csv: false
 }
 
 parser = OptionParser.new do |opts|
@@ -154,11 +154,11 @@ parser = OptionParser.new do |opts|
   opts.on("--train-to DATE", "学習データの最終日 (YYYY-MM-DD)") { |v| options[:train_to] = v }
   opts.on("--lake-dir DIR", "Parquet 入力ルート") { |v| options[:lake_dir] = v }
   opts.on("--feature-set-version NAME", "feature set version (default: v1)") { |v| options[:feature_set_version] = v }
-  opts.on("--out-dir DIR", "train/valid CSV 出力先") { |v| options[:out_dir] = v }
+  opts.on("--out-dir DIR", "train/valid CSV 出力先（互換モード）") { |v| options[:out_dir] = v }
   opts.on("--mart-dir DIR", "train/valid Parquet 出力先") { |v| options[:mart_dir] = v }
   opts.on("--db-path PATH", "DuckDB DB ファイルパス") { |v| options[:db_path] = v }
   opts.on("--sql-template PATH", "split SQL テンプレートファイル") { |v| options[:sql_template] = v }
-  opts.on("--emit-csv BOOL", "CSVを出力するか (default: true)") { |v| options[:emit_csv] = v.to_s.downcase == "true" }
+  opts.on("--emit-csv BOOL", "CSVを出力するか (default: false)") { |v| options[:emit_csv] = v.to_s.downcase == "true" }
 end
 parser.parse!
 

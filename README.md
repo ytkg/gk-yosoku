@@ -275,7 +275,7 @@ make restore-duckdb SRC=data/duckdb_backup/gk_yosoku_YYYYMMDDTHHMMSSZ.duckdb
 - `make features-duckdb`: 既定は `sql_v1` モード（`data/lake/raw_results` から SQL 主導で features CSV/Parquet を生成）
 - `make features-duckdb-sql`: `make features-duckdb FEATURES_DUCKDB_MODE=sql_v1` のエイリアス
 - `make split-duckdb`: `data/lake/features` から mart Parquet を作成（`train.csv` / `valid.csv` は互換用途）
-- `SPLIT_EMIT_CSV=false` を指定すると `train.csv` / `valid.csv` の生成をスキップ
+- 既定では `SPLIT_EMIT_CSV=false`（`train.csv` / `valid.csv` は生成しない）。互換CSVが必要な場合のみ `SPLIT_EMIT_CSV=true` を指定
 - split 実行結果は `data/ml/split_summary.json` に保存（`split_id`, `emit_csv`, 出力パス）
 - train/tune/cv 実行時は `split_summary.json` を参照して `split_id` / `emit_csv` を監査ログに出力
 - `make validate-duckdb`: CSV features と Parquet features の差分検証レポートを作成
@@ -781,7 +781,7 @@ DuckDB/Parquet 共通:
 - `CV_DUCKDB_OPTS`（既定: `$(DUCKDB_FEATURE_OPTS)`）
 
 split/train/tune 関連:
-- `SPLIT_EMIT_CSV`（既定: `true`、`false` 指定で `train.csv` / `valid.csv` の生成をスキップ）
+- `SPLIT_EMIT_CSV`（既定: `false`、`true` 指定で `train.csv` / `valid.csv` を生成）
 - `PROFILE_SPLIT_ID`（既定: `FROM_TO_TRAIN_TO` から自動生成）
 - `PROFILE_MART_DIR`（既定: `data/marts/train_valid/split_id=$(PROFILE_SPLIT_ID)`）
 - `TRAIN_DUCKDB_OPTS`（既定: `--train-parquet $(PROFILE_MART_DIR)/train.parquet --valid-parquet $(PROFILE_MART_DIR)/valid.parquet $(DUCKDB_DB_OPTS)`）

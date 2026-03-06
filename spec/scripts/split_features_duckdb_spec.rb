@@ -3,7 +3,7 @@
 require "spec_helper"
 
 RSpec.describe "split_features_duckdb.rb" do
-  it "features Parquet から train/valid CSV と mart Parquet を生成する" do
+  it "features Parquet から既定では mart Parquet のみを生成する" do
     Dir.mktmpdir("spec-split-duckdb-") do |tmp|
       bin_dir = File.join(tmp, "bin")
       create_fake_duckdb(bin_dir)
@@ -29,17 +29,17 @@ RSpec.describe "split_features_duckdb.rb" do
         env: env
       )
       expect(st.success?).to be(true), err
-      expect(File).to exist(File.join(out_dir, "train.csv"))
-      expect(File).to exist(File.join(out_dir, "valid.csv"))
+      expect(File).not_to exist(File.join(out_dir, "train.csv"))
+      expect(File).not_to exist(File.join(out_dir, "valid.csv"))
       summary = JSON.parse(File.read(File.join(out_dir, "split_summary.json"), encoding: "UTF-8"))
-      expect(summary["emit_csv"]).to eq(true)
+      expect(summary["emit_csv"]).to eq(false)
       split_dir = File.join(mart_dir, "split_id=20260225_20260226_train_to_20260225")
       expect(File).to exist(File.join(split_dir, "train.parquet"))
       expect(File).to exist(File.join(split_dir, "valid.parquet"))
     end
   end
 
-  it "--emit-csv false のとき CSV を生成しない" do
+  it "--emit-csv true のとき CSV を生成する" do
     Dir.mktmpdir("spec-split-duckdb-no-csv-") do |tmp|
       bin_dir = File.join(tmp, "bin")
       create_fake_duckdb(bin_dir)
@@ -62,14 +62,14 @@ RSpec.describe "split_features_duckdb.rb" do
         "--out-dir", out_dir,
         "--mart-dir", mart_dir,
         "--db-path", db_path,
-        "--emit-csv", "false",
+        "--emit-csv", "true",
         env: env
       )
       expect(st.success?).to be(true), err
-      expect(File).not_to exist(File.join(out_dir, "train.csv"))
-      expect(File).not_to exist(File.join(out_dir, "valid.csv"))
+      expect(File).to exist(File.join(out_dir, "train.csv"))
+      expect(File).to exist(File.join(out_dir, "valid.csv"))
       summary = JSON.parse(File.read(File.join(out_dir, "split_summary.json"), encoding: "UTF-8"))
-      expect(summary["emit_csv"]).to eq(false)
+      expect(summary["emit_csv"]).to eq(true)
       split_dir = File.join(mart_dir, "split_id=20260225_20260226_train_to_20260225")
       expect(File).to exist(File.join(split_dir, "train.parquet"))
       expect(File).to exist(File.join(split_dir, "valid.parquet"))

@@ -67,7 +67,7 @@ PROFILE_SPLIT_ID ?= $(subst -,,$(FROM))_$(subst -,,$(TO))_train_to_$(subst -,,$(
 PROFILE_MART_DIR ?= data/marts/train_valid/split_id=$(PROFILE_SPLIT_ID)
 SPLIT_SUMMARY_JSON ?= data/ml/split_summary.json
 TRAIN_DUCKDB_OPTS ?= --train-parquet $(PROFILE_MART_DIR)/train.parquet --valid-parquet $(PROFILE_MART_DIR)/valid.parquet --split-summary-json $(SPLIT_SUMMARY_JSON) $(DUCKDB_DB_OPTS)
-SPLIT_EMIT_CSV ?= true
+SPLIT_EMIT_CSV ?= false
 TUNE_TRAIN_PARQUET ?= $(PROFILE_MART_DIR)/train.parquet
 TUNE_VALID_PARQUET ?= $(PROFILE_MART_DIR)/valid.parquet
 TUNE_DUCKDB_OPTS ?= --train-parquet $(TUNE_TRAIN_PARQUET) --valid-parquet $(TUNE_VALID_PARQUET) --split-summary-json $(SPLIT_SUMMARY_JSON) $(DUCKDB_DB_OPTS)
