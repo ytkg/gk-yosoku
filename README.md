@@ -58,6 +58,7 @@ make issue-cycle
 
 ```bash
 make issue-cycle
+make sync-next-issue
 gh issue list --state open
 ```
 

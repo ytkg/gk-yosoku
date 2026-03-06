@@ -77,7 +77,7 @@ include .env
 export
 endif
 
-.PHONY: help issue-cycle build api-start api-start-bg api-stop api-logs api-health api-predict api-predict-timeout-check api-smoke api-cli-parity manifest-inspect collect parquet-bootstrap features features-duckdb features-duckdb-sql split split-duckdb validate-duckdb eval-duckdb backup-duckdb restore-duckdb features-exacta train train-top3-noplayer eval train-top1 train-top1-noplayer eval-top1 train-exacta eval-exacta-model train-dual eval-dual train-weakodds eval-weakodds train-top1-weakodds eval-top1-weakodds exotic eval-exotic exotic-weakodds eval-exotic-weakodds learn-hit5-profile learn-exacta-profile eval-exacta-profile optimize-exotic-hitk tune tune-top1 tune-top1-noplayer tune-top3 tune-top3-noplayer tune-weakodds tune-top1-weakodds cv cv-top1 cv-top3-noplayer cv-top1-noplayer cv-half-life-grid importance predict predict-exacta predict-balanced predict-trifecta predict-hit5 predict-hit5-profile predict-tri5 predict-weakodds test test-duckdb pipeline full
+.PHONY: help issue-cycle sync-next-issue build api-start api-start-bg api-stop api-logs api-health api-predict api-predict-timeout-check api-smoke api-cli-parity manifest-inspect collect parquet-bootstrap features features-duckdb features-duckdb-sql split split-duckdb validate-duckdb eval-duckdb backup-duckdb restore-duckdb features-exacta train train-top3-noplayer eval train-top1 train-top1-noplayer eval-top1 train-exacta eval-exacta-model train-dual eval-dual train-weakodds eval-weakodds train-top1-weakodds eval-top1-weakodds exotic eval-exotic exotic-weakodds eval-exotic-weakodds learn-hit5-profile learn-exacta-profile eval-exacta-profile optimize-exotic-hitk tune tune-top1 tune-top1-noplayer tune-top3 tune-top3-noplayer tune-weakodds tune-top1-weakodds cv cv-top1 cv-top3-noplayer cv-top1-noplayer cv-half-life-grid importance predict predict-exacta predict-balanced predict-trifecta predict-hit5 predict-hit5-profile predict-tri5 predict-weakodds test test-duckdb pipeline full
 
 help:
 	@echo "Targets:"
@@ -152,6 +152,7 @@ help:
 	@echo "  make test"
 	@echo "  make test-duckdb"
 	@echo "  make issue-cycle"
+	@echo "  make sync-next-issue"
 	@echo "  make pipeline  FROM=YYYY-MM-DD TO=YYYY-MM-DD TRAIN_TO=YYYY-MM-DD"
 	@echo "  make full      FROM=YYYY-MM-DD TO=YYYY-MM-DD TRAIN_TO=YYYY-MM-DD SLEEP=0.2 CACHE=--cache"
 	@echo "  notes:"
@@ -173,6 +174,9 @@ issue-cycle:
 	@echo "  7) exotics閾値や温度を更新した場合は make optimize-exotic-hitk を実行"
 	@echo "  8) 親Issue #32 を更新"
 	@echo "  9) open issue を確認（gh issue list --state open）"
+
+sync-next-issue:
+	ruby scripts/sync_next_issue.rb --parent-issue 32
 
 build:
 	docker build -t $(IMAGE) .
