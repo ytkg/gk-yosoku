@@ -351,6 +351,9 @@ make train-top1-noplayer
 - `make train-top3-noplayer` -> `data/ml/`
 - `make train-top1-noplayer` -> `data/ml_top1/`
 
+補足:
+- `train_lightgbm.rb` は `--train-parquet` / `--valid-parquet` の利用を推奨し、`--train-csv` / `--valid-csv` は互換用途です。
+
 オッズ弱依存モデルを学習する場合（既定では `odds_2shatan_min_first` を除外）:
 
 ```bash
