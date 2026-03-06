@@ -10,7 +10,7 @@ def run!(*cmd)
   out, err, st = Open3.capture3(*cmd)
   raise "command failed: #{cmd.join(' ')}\n#{err}\n#{out}" unless st.success?
 
-  out
+  out.force_encoding("UTF-8").encode("UTF-8", invalid: :replace, undef: :replace)
 end
 
 def priority_rank(labels)
