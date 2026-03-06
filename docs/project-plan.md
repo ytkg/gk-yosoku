@@ -302,6 +302,11 @@ make cv-top1 FROM=2025-01-01 TO=2026-02-25 \
 - `top1`: `data/ml_top1/tuning_v2/trial_029/eval_summary.json` と `data/ml_top1_noplayer/tuning_v2/trial_025/eval_summary.json` は `winner_hit_rate` 同率、`auc` は full が優位
 - 決定: 既定値は `TOP3_FEATURE_SET=full` / `TOP1_FEATURE_SET=full`
 
+再比較トリガー:
+1. 学習期間を3か月以上更新したとき
+2. `winner_hit_rate` または `top3_exact_match_rate` が直近基準より 0.01 以上悪化したとき
+3. 特徴量の追加/削除を実施したとき
+
 ## 既知の方針
 
 - 古すぎるデータは性能を落とす可能性があるため、まずは直近12か月中心で比較
