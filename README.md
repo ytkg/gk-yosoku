@@ -828,6 +828,7 @@ split/train/tune 関連:
 - `top1`: `data/ml_top1/tuning_v2/trial_029/eval_summary.json` と `data/ml_top1_noplayer/tuning_v2/trial_025/eval_summary.json` は `winner_hit_rate` 同率、`auc` は full が優位
 - 採用方針: `TOP3_FEATURE_SET=full` / `TOP1_FEATURE_SET=full`
 - 再比較トリガー: `docs/project-plan.md` の「top1/top3 特徴量セット分岐の比較結果」節を参照
+- 自動比較ジョブ: `make compare-feature-sets`（出力: `data/ml/feature_set_comparison.json`）
 
 例:
 

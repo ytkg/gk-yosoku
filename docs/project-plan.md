@@ -322,7 +322,7 @@ make cv-top1 FROM=2025-01-01 TO=2026-02-25 \
 
 ## 次の改善候補
 
-1. [P2] #212 [改善] time-decay 半減期再評価を定期実行タスク化する
+1. [P2] #213 [改善] top1/top3 の feature set 比較を自動実験ジョブ化する
 2. [P1] `evaluate_lightgbm_duckdb` / `tune_lightgbm` / `run_timeseries_cv` の共通オプションを整理し、実行インターフェースを統一する
 3. [P2] time-decay の半減期をCV平均で探索し、既定値を再設定する
 4. [P2] `top1` と `top3` の特徴量セット分岐最適化（モデル目的に合わせた削減/追加）

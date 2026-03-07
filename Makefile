@@ -27,6 +27,12 @@ CV_OPTS ?=
 HALF_LIFE_OPTS ?=
 HALF_LIFE_SORT_METRIC ?= winner_hit_rate_mean
 HALF_LIFE_MIN_IMPROVEMENT ?= 0.01
+FEATURE_SET_TOP3_FULL_SUMMARY ?= data/ml/eval_summary.json
+FEATURE_SET_TOP3_NOPLAYER_SUMMARY ?= data/ml_noplayer/tuning_v2/trial_024/eval_summary.json
+FEATURE_SET_TOP1_FULL_SUMMARY ?= data/ml_top1/tuning_v2/trial_029/eval_summary.json
+FEATURE_SET_TOP1_NOPLAYER_SUMMARY ?= data/ml_top1_noplayer/tuning_v2/trial_025/eval_summary.json
+FEATURE_SET_COMPARE_OUT ?= data/ml/feature_set_comparison.json
+FEATURE_SET_TIE_THRESHOLD ?= 0.0
 
 # DuckDB / Parquet base
 LAKE_DIR ?= data/lake
@@ -93,7 +99,7 @@ include .env
 export
 endif
 
-.PHONY: help issue-cycle sync-next-issue issue-cycle-report suggest-next-issue build api-start api-start-bg api-stop api-logs api-health api-predict api-predict-timeout-check api-smoke api-cli-parity manifest-inspect collect parquet-bootstrap features features-duckdb features-duckdb-sql split split-duckdb validate-duckdb eval-duckdb backup-duckdb restore-duckdb features-exacta train train-top3-noplayer eval train-top1 train-top1-noplayer eval-top1 train-exacta eval-exacta-model train-dual eval-dual train-weakodds eval-weakodds train-top1-weakodds eval-top1-weakodds exotic eval-exotic exotic-weakodds eval-exotic-weakodds learn-hit5-profile learn-exacta-profile eval-exacta-profile optimize-exotic-hitk tune tune-top1 tune-top1-noplayer tune-top3 tune-top3-noplayer tune-weakodds tune-top1-weakodds cv cv-top1 cv-top3-noplayer cv-top1-noplayer cv-half-life-grid reevaluate-half-life importance predict predict-exacta predict-balanced predict-trifecta predict-hit5 predict-hit5-profile predict-tri5 predict-weakodds test test-duckdb pipeline full
+.PHONY: help issue-cycle sync-next-issue issue-cycle-report suggest-next-issue build api-start api-start-bg api-stop api-logs api-health api-predict api-predict-timeout-check api-smoke api-cli-parity manifest-inspect collect parquet-bootstrap features features-duckdb features-duckdb-sql split split-duckdb validate-duckdb eval-duckdb backup-duckdb restore-duckdb features-exacta train train-top3-noplayer eval train-top1 train-top1-noplayer eval-top1 train-exacta eval-exacta-model train-dual eval-dual train-weakodds eval-weakodds train-top1-weakodds eval-top1-weakodds exotic eval-exotic exotic-weakodds eval-exotic-weakodds learn-hit5-profile learn-exacta-profile eval-exacta-profile optimize-exotic-hitk tune tune-top1 tune-top1-noplayer tune-top3 tune-top3-noplayer tune-weakodds tune-top1-weakodds cv cv-top1 cv-top3-noplayer cv-top1-noplayer cv-half-life-grid reevaluate-half-life compare-feature-sets importance predict predict-exacta predict-balanced predict-trifecta predict-hit5 predict-hit5-profile predict-tri5 predict-weakodds test test-duckdb pipeline full
 
 help:
 	@echo "Targets:"
@@ -158,6 +164,8 @@ help:
 	@echo "            data/ml_cv_half_life/half_life_summary.json"
 	@echo "  make reevaluate-half-life FROM=YYYY-MM-DD TO=YYYY-MM-DD HALF_LIFE_GRID='60,90,120,180'"
 	@echo "    -> out: data/ml_cv_half_life/half_life_decision.json"
+	@echo "  make compare-feature-sets FEATURE_SET_TIE_THRESHOLD=0.001"
+	@echo "    -> out: data/ml/feature_set_comparison.json"
 	@echo "  make importance"
 	@echo "  make predict   RACE_URL='https://keirin.kdreams.jp/.../racedetail/xxxxxxxxxxxxxxxx/' PREDICT_OPTS='--exacta-top 20 --trifecta-top 50'"
 	@echo "  make predict-exacta RACE_URL='https://keirin.kdreams.jp/.../racedetail/xxxxxxxxxxxxxxxx/'"
@@ -184,6 +192,7 @@ help:
 	@echo "    vars(train): TOP3_FEATURE_SET=full|noplayer TOP1_FEATURE_SET=full|noplayer"
 	@echo "    vars(cv): CV_OPTS HALF_LIFE_OPTS HALF_LIFE_GRID"
 	@echo "    vars(cv): HALF_LIFE_SORT_METRIC HALF_LIFE_MIN_IMPROVEMENT"
+	@echo "    vars(feature-set): FEATURE_SET_TOP3_FULL_SUMMARY FEATURE_SET_TOP3_NOPLAYER_SUMMARY FEATURE_SET_TOP1_FULL_SUMMARY FEATURE_SET_TOP1_NOPLAYER_SUMMARY FEATURE_SET_COMPARE_OUT FEATURE_SET_TIE_THRESHOLD"
 	@echo "    vars(exacta): EXACTA_DUCKDB_OPTS EXACTA_TRAIN_OPTS EXACTA_EVAL_OPTS"
 	@echo "    vars(exotic): EXOTIC_TOPS=exacta_top,trifecta_top (example: 20,50)"
 	@echo "  compatibility mode:"
@@ -490,6 +499,9 @@ cv-half-life-grid:
 reevaluate-half-life:
 	$(MAKE) cv-half-life-grid FROM=$(FROM) TO=$(TO) HALF_LIFE_GRID=$(HALF_LIFE_GRID) HALF_LIFE_CV_OUT_DIR=$(HALF_LIFE_CV_OUT_DIR) MIN_SAMPLE_WEIGHT=$(MIN_SAMPLE_WEIGHT) CV_DUCKDB_OPTS="$(CV_DUCKDB_OPTS)" HALF_LIFE_OPTS="$(HALF_LIFE_OPTS)"
 	$(DOCKER_RUN) ruby scripts/decide_time_decay_half_life.rb --summary $(HALF_LIFE_CV_OUT_DIR)/half_life_summary.json --current-half-life $(DECAY_HALF_LIFE_DAYS) --metric $(HALF_LIFE_SORT_METRIC) --min-improvement $(HALF_LIFE_MIN_IMPROVEMENT) --out $(HALF_LIFE_CV_OUT_DIR)/half_life_decision.json
+
+compare-feature-sets:
+	$(DOCKER_RUN) ruby scripts/compare_feature_sets.rb --top3-full $(FEATURE_SET_TOP3_FULL_SUMMARY) --top3-noplayer $(FEATURE_SET_TOP3_NOPLAYER_SUMMARY) --top1-full $(FEATURE_SET_TOP1_FULL_SUMMARY) --top1-noplayer $(FEATURE_SET_TOP1_NOPLAYER_SUMMARY) --tie-threshold $(FEATURE_SET_TIE_THRESHOLD) --out $(FEATURE_SET_COMPARE_OUT)
 
 importance:
 	$(DOCKER_RUN) ruby scripts/show_feature_importance.rb
