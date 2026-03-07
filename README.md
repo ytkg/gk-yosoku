@@ -531,6 +531,9 @@ make cv-half-life-grid FROM=2025-01-01 TO=2026-02-25 HALF_LIFE_GRID="60,90,120,1
 
 # 並び替え指標を変更する場合（例: top3_exact_match_rate_mean）
 make cv-half-life-grid HALF_LIFE_OPTS="--sort-metric top3_exact_match_rate_mean"
+
+# 推奨値の採用可否まで含めて実行する場合
+make reevaluate-half-life FROM=2025-01-01 TO=2026-02-25 HALF_LIFE_GRID="60,90,120,180" HALF_LIFE_MIN_IMPROVEMENT=0.01
 ```
 
 最小実行例（Makefile既定の期間を利用）:
@@ -546,6 +549,7 @@ make cv-half-life-grid
 半減期比較ジョブの主な出力:
 - `data/ml_cv_half_life/half_life_leaderboard.csv`
 - `data/ml_cv_half_life/half_life_summary.json`
+- `data/ml_cv_half_life/half_life_decision.json`
 - `half_life_summary.json` の `recommended_half_life_days`
 
 出力:

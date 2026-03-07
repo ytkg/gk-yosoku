@@ -70,4 +70,46 @@ RSpec.describe "compare_time_decay_half_life" do
       expect(summary2.dig("options", "sort_metric")).to eq("top3_exact_match_rate_mean")
     end
   end
+
+  it "decide_time_decay_half_life.rb: 改善閾値に応じて採用可否を決定する" do
+    Dir.mktmpdir("spec-half-life-decision-") do |tmp|
+      summary_path = File.join(tmp, "half_life_summary.json")
+      summary = {
+        "recommended_half_life_days" => 90.0,
+        "rows" => [
+          { "half_life_days" => 90.0, "winner_hit_rate_mean" => 0.681 },
+          { "half_life_days" => 120.0, "winner_hit_rate_mean" => 0.675 }
+        ]
+      }
+      File.write(summary_path, JSON.pretty_generate(summary))
+
+      out_path = File.join(tmp, "decision.json")
+      _out, err, st = run_cmd(
+        "ruby", "scripts/decide_time_decay_half_life.rb",
+        "--summary", summary_path,
+        "--current-half-life", "120",
+        "--metric", "winner_hit_rate_mean",
+        "--min-improvement", "0.01",
+        "--out", out_path
+      )
+      expect(st.success?).to be(true), err
+      decision = JSON.parse(File.read(out_path, encoding: "UTF-8"))
+      expect(decision["should_adopt_recommendation"]).to eq(false)
+      expect(decision["selected_half_life_days"]).to eq(120.0)
+
+      out_path2 = File.join(tmp, "decision2.json")
+      _out2, err2, st2 = run_cmd(
+        "ruby", "scripts/decide_time_decay_half_life.rb",
+        "--summary", summary_path,
+        "--current-half-life", "120",
+        "--metric", "winner_hit_rate_mean",
+        "--min-improvement", "0.001",
+        "--out", out_path2
+      )
+      expect(st2.success?).to be(true), err2
+      decision2 = JSON.parse(File.read(out_path2, encoding: "UTF-8"))
+      expect(decision2["should_adopt_recommendation"]).to eq(true)
+      expect(decision2["selected_half_life_days"]).to eq(90.0)
+    end
+  end
 end
