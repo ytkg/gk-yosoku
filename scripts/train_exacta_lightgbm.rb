@@ -85,8 +85,15 @@ class ExactaLightGBMTrainer
       raise "valid-parquet is required when train-parquet is set"
     end
 
-    warn "train-csv is ignored because train-parquet is set" if train_parquet_present && train_csv_present
-    warn "valid-csv is ignored because valid-parquet is set" if valid_parquet_present && valid_csv_present
+    if train_parquet_present
+      warn "csv compatibility mode is disabled because train-parquet/valid-parquet is set" if train_csv_present || valid_csv_present
+      return
+    end
+
+    raise "train-csv is required when train-parquet is not set" unless train_csv_present
+    raise "valid-csv or valid-parquet is required when train-parquet is not set" unless valid_csv_present || valid_parquet_present
+
+    warn "input_mode=csv (compatibility mode). Use --train-parquet/--valid-parquet for standard v2 flow." unless valid_parquet_present
   end
 
   def resolved_train_csv
@@ -254,8 +261,8 @@ class ExactaLightGBMTrainer
 end
 
 options = {
-  train_csv: File.join("data", "ml_exacta", "train.csv"),
-  valid_csv: File.join("data", "ml_exacta", "valid.csv"),
+  train_csv: nil,
+  valid_csv: nil,
   train_parquet: nil,
   valid_parquet: nil,
   db_path: File.join("data", "duckdb", "gk_yosoku.duckdb"),

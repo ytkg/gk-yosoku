@@ -4,24 +4,29 @@
 require "csv"
 require "fileutils"
 require "optparse"
+require_relative "lib/duckdb_runner"
 require_relative "lib/parquet_materializer"
 require_relative "lib/exacta_feature_schema"
 
 class ExactaFeatureBuilder
-  def initialize(train_csv:, valid_csv:, train_parquet:, valid_parquet:, db_path:, out_dir:)
+  def initialize(train_csv:, valid_csv:, train_parquet:, valid_parquet:, db_path:, out_dir:, emit_parquet:)
     @train_csv = train_csv
     @valid_csv = valid_csv
     @train_parquet = train_parquet
     @valid_parquet = valid_parquet
     @db_path = db_path
     @out_dir = out_dir
+    @emit_parquet = emit_parquet
     FileUtils.mkdir_p(@out_dir)
   end
 
   def run
     validate_input_options!
-    build_for_split(resolved_train_csv, File.join(@out_dir, "train.csv"))
-    build_for_split(resolved_valid_csv, File.join(@out_dir, "valid.csv"))
+    train_csv = File.join(@out_dir, "train.csv")
+    valid_csv = File.join(@out_dir, "valid.csv")
+    build_for_split(resolved_train_csv, train_csv)
+    build_for_split(resolved_valid_csv, valid_csv)
+    materialize_parquet(train_csv: train_csv, valid_csv: valid_csv) if @emit_parquet
   end
 
   private
@@ -135,6 +140,25 @@ class ExactaFeatureBuilder
       rows.each { |r| csv << headers.map { |h| r[h] } }
     end
   end
+
+  def materialize_parquet(train_csv:, valid_csv:)
+    GK::DuckDBRunner.ensure_duckdb!(
+      message: "duckdb command not found. Please install duckdb CLI in Docker image."
+    )
+    train_parquet = File.join(@out_dir, "train.parquet")
+    valid_parquet = File.join(@out_dir, "valid.parquet")
+    sql = <<~SQL
+      COPY (SELECT * FROM read_csv_auto('#{escape_sql_path(train_csv)}', HEADER=TRUE)) TO '#{escape_sql_path(train_parquet)}' (FORMAT PARQUET);
+      COPY (SELECT * FROM read_csv_auto('#{escape_sql_path(valid_csv)}', HEADER=TRUE)) TO '#{escape_sql_path(valid_parquet)}' (FORMAT PARQUET);
+    SQL
+    GK::DuckDBRunner.run_sql!(db_path: @db_path, sql: sql)
+    warn "parquet_train=#{train_parquet}"
+    warn "parquet_valid=#{valid_parquet}"
+  end
+
+  def escape_sql_path(path)
+    path.to_s.gsub("'", "''")
+  end
 end
 
 options = {
@@ -143,7 +167,8 @@ options = {
   train_parquet: nil,
   valid_parquet: nil,
   db_path: File.join("data", "duckdb", "gk_yosoku.duckdb"),
-  out_dir: File.join("data", "ml_exacta")
+  out_dir: File.join("data", "ml_exacta"),
+  emit_parquet: false
 }
 
 parser = OptionParser.new do |opts|
@@ -154,6 +179,7 @@ parser = OptionParser.new do |opts|
   opts.on("--valid-parquet PATH", "base valid parquet (recommended)") { |v| options[:valid_parquet] = v }
   opts.on("--db-path PATH", "DuckDB DB path for parquet input") { |v| options[:db_path] = v }
   opts.on("--out-dir DIR", "output dir (default: data/ml_exacta)") { |v| options[:out_dir] = v }
+  opts.on("--emit-parquet BOOL", "output train.parquet/valid.parquet (default: false)") { |v| options[:emit_parquet] = v.to_s.downcase == "true" }
 end
 parser.parse!
 
@@ -163,5 +189,6 @@ ExactaFeatureBuilder.new(
   train_parquet: options[:train_parquet],
   valid_parquet: options[:valid_parquet],
   db_path: options[:db_path],
-  out_dir: options[:out_dir]
+  out_dir: options[:out_dir],
+  emit_parquet: options[:emit_parquet]
 ).run

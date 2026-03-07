@@ -68,6 +68,33 @@ RSpec.describe "exacta model scripts" do
     end
   end
 
+  it "build_exacta_features.rb: --emit-parquet true で train/valid parquet を生成する" do
+    Dir.mktmpdir("spec-exacta-build-emit-parquet-") do |tmp|
+      train_csv = File.join(tmp, "train.csv")
+      valid_csv = File.join(tmp, "valid.csv")
+      write_csv(train_csv, feature_headers, sample_feature_rows(date: "2026-02-25", race_id: "2026-02-25-toride-01"))
+      write_csv(valid_csv, feature_headers, sample_feature_rows(date: "2026-02-26", race_id: "2026-02-26-toride-01"))
+
+      bin_dir = File.join(tmp, "bin")
+      create_fake_duckdb_for_exacta_parquet(bin_dir, train_csv, valid_csv)
+      env = { "PATH" => "#{bin_dir}:#{ENV.fetch('PATH', '')}" }
+
+      out_dir = File.join(tmp, "ml_exacta")
+      _out, err, st = run_cmd(
+        "ruby", "scripts/build_exacta_features.rb",
+        "--train-csv", train_csv,
+        "--valid-csv", valid_csv,
+        "--emit-parquet", "true",
+        "--db-path", File.join(tmp, "duckdb", "gk_yosoku.duckdb"),
+        "--out-dir", out_dir,
+        env: env
+      )
+      expect(st.success?).to be(true), err
+      expect(File).to exist(File.join(out_dir, "train.parquet"))
+      expect(File).to exist(File.join(out_dir, "valid.parquet"))
+    end
+  end
+
   it "train/evaluate exactaモデルをfake lightgbmで実行できる" do
     Dir.mktmpdir("spec-exacta-train-eval-") do |tmp|
       bin_dir = File.join(tmp, "bin")

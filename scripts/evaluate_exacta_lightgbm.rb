@@ -30,6 +30,7 @@ class ExactaLightGBMEvaluator
 
   def run
     check_lightgbm!
+    validate_input_options!
 
     rows = CSV.read(resolved_valid_csv, headers: true, encoding: "UTF-8").map(&:to_h)
     raise "empty valid rows" if rows.empty?
@@ -70,6 +71,20 @@ class ExactaLightGBMEvaluator
     return @valid_csv if @valid_parquet.nil? || @valid_parquet.empty?
 
     materialize_parquet_to_csv(@valid_parquet, File.join(@out_dir, "valid_from_parquet.csv"))
+  end
+
+  def validate_input_options!
+    valid_parquet_present = !(@valid_parquet.nil? || @valid_parquet.empty?)
+    valid_csv_present = !(@valid_csv.nil? || @valid_csv.empty?)
+
+    if valid_parquet_present
+      warn "valid-csv is ignored because valid-parquet is set" if valid_csv_present
+      return
+    end
+
+    raise "valid-csv or valid-parquet is required" unless valid_csv_present
+
+    warn "input_mode=csv (compatibility mode). Use --valid-parquet for standard v2 flow."
   end
 
   def materialize_parquet_to_csv(parquet_path, out_csv_path)
@@ -210,7 +225,7 @@ end
 
 options = {
   model_path: File.join("data", "ml_exacta", "model.txt"),
-  valid_csv: File.join("data", "ml_exacta", "valid.csv"),
+  valid_csv: nil,
   valid_parquet: nil,
   db_path: File.join("data", "duckdb", "gk_yosoku.duckdb"),
   encoder_path: File.join("data", "ml_exacta", "encoders.json"),

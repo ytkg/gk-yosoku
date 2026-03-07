@@ -420,8 +420,8 @@ make eval-exacta-model
 
 - `data/ml_exacta/exacta_pred.csv`（レースごとの2連単候補）
 - `data/ml_exacta/eval_summary.json`（`hit_at` と `auc`）
-- `build_exacta_features.rb` は `--train-parquet` / `--valid-parquet` 入力にも対応（CSV入力は互換用途）
-- `train_exacta_lightgbm.rb` / `evaluate_exacta_lightgbm.rb` も Parquet 入力を利用可能（`--db-path` 必須）
+- `build_exacta_features.rb` は `--emit-parquet true` で `data/ml_exacta/train.parquet` / `valid.parquet` を生成可能
+- `make train-exacta` / `make eval-exacta-model` は既定で Parquet 入力を利用（CSVは互換用途）
 
 ### 6. 2連単/3連単候補の生成
 
@@ -793,6 +793,7 @@ split/train/tune 関連:
 - `CV_OPTS`（既定: 空、`make cv` の追加オプション）
 - `TOP3_TRAIN_OPTS` / `TOP1_TRAIN_OPTS`（各学習ターゲット固有の追加オプション）
 - `TOP3_EVAL_OPTS` / `TOP1_EVAL_OPTS`（各評価ターゲット固有の追加オプション）
+- `EXACTA_DUCKDB_OPTS`（既定: `--train-parquet data/ml_exacta/train.parquet --valid-parquet data/ml_exacta/valid.parquet --db-path $(PARQUET_DB)`）
 - `EXACTA_TRAIN_OPTS` / `EXACTA_EVAL_OPTS`（exacta専用モデルの追加オプション）
 - `TOP3_FEATURE_SET` / `TOP1_FEATURE_SET`（既定: `full`、`noplayer` 指定時は `player_name` を除外）
 
@@ -871,6 +872,8 @@ make collect FROM=2026-01-01 TO=2026-02-25 CACHE=--no-cache SLEEP=0.1
 - `data/ml_top1/eval_summary.json`
 - `data/ml_exacta/train.csv`（互換用途）
 - `data/ml_exacta/valid.csv`（互換用途）
+- `data/ml_exacta/train.parquet`（標準入力）
+- `data/ml_exacta/valid.parquet`（標準入力）
 - `data/ml_exacta/model.txt`
 - `data/ml_exacta/encoders.json`
 - `data/ml_exacta/valid_pair_pred.csv`

@@ -22,6 +22,7 @@ TOP3_FEATURE_SET ?= full
 TOP1_FEATURE_SET ?= full
 EXACTA_TRAIN_OPTS ?=
 EXACTA_EVAL_OPTS ?=
+EXACTA_DUCKDB_OPTS ?= --train-parquet data/ml_exacta/train.parquet --valid-parquet data/ml_exacta/valid.parquet --db-path $(PARQUET_DB)
 CV_OPTS ?=
 HALF_LIFE_OPTS ?=
 
@@ -178,6 +179,7 @@ help:
 	@echo "    vars(tune): TUNE_DUCKDB_OPTS TUNE_TRAIN_PARQUET TUNE_VALID_PARQUET"
 	@echo "    vars(train): TOP3_FEATURE_SET=full|noplayer TOP1_FEATURE_SET=full|noplayer"
 	@echo "    vars(cv): CV_OPTS HALF_LIFE_OPTS HALF_LIFE_GRID"
+	@echo "    vars(exacta): EXACTA_DUCKDB_OPTS EXACTA_TRAIN_OPTS EXACTA_EVAL_OPTS"
 	@echo "    vars(exotic): EXOTIC_TOPS=exacta_top,trifecta_top (example: 20,50)"
 	@echo "  compatibility mode:"
 	@echo "    split csv emit: make split-duckdb SPLIT_EMIT_CSV=true"
@@ -363,6 +365,8 @@ features-exacta:
 	$(DOCKER_RUN) ruby scripts/build_exacta_features.rb \
 		--train-csv data/ml/train.csv \
 		--valid-csv data/ml/valid.csv \
+		--db-path $(PARQUET_DB) \
+		--emit-parquet true \
 		--out-dir data/ml_exacta
 
 train:
@@ -385,10 +389,10 @@ eval-top1:
 	$(MAKE) eval-duckdb FROM=$(FROM) TO=$(TO) LAKE_DIR=$(LAKE_DIR) PARQUET_DB=$(PARQUET_DB) EVAL_DUCKDB_MODEL=data/ml_top1/model.txt EVAL_DUCKDB_ENCODERS=data/ml_top1/encoders.json EVAL_DUCKDB_OUT_DIR=data/ml_top1 EVAL_DUCKDB_TARGET_COL=top1 EVAL_DUCKDB_OPTS="$(TOP1_EVAL_OPTS)"
 
 train-exacta:
-	$(DOCKER_RUN) ruby scripts/train_exacta_lightgbm.rb --train-csv data/ml_exacta/train.csv --valid-csv data/ml_exacta/valid.csv --out-dir data/ml_exacta --weight-mode $(WEIGHT_MODE) --decay-half-life-days $(DECAY_HALF_LIFE_DAYS) --min-sample-weight $(MIN_SAMPLE_WEIGHT) $(EXACTA_TRAIN_OPTS)
+	$(DOCKER_RUN) ruby scripts/train_exacta_lightgbm.rb --out-dir data/ml_exacta --weight-mode $(WEIGHT_MODE) --decay-half-life-days $(DECAY_HALF_LIFE_DAYS) --min-sample-weight $(MIN_SAMPLE_WEIGHT) $(EXACTA_DUCKDB_OPTS) $(EXACTA_TRAIN_OPTS)
 
 eval-exacta-model:
-	$(DOCKER_RUN) ruby scripts/evaluate_exacta_lightgbm.rb --model data/ml_exacta/model.txt --valid-csv data/ml_exacta/valid.csv --encoders data/ml_exacta/encoders.json --out-dir data/ml_exacta $(EXACTA_EVAL_OPTS)
+	$(DOCKER_RUN) ruby scripts/evaluate_exacta_lightgbm.rb --model data/ml_exacta/model.txt --encoders data/ml_exacta/encoders.json --out-dir data/ml_exacta --valid-parquet data/ml_exacta/valid.parquet --db-path $(PARQUET_DB) $(EXACTA_EVAL_OPTS)
 
 train-dual:
 	$(MAKE) train
