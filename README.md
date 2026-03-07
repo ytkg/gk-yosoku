@@ -574,7 +574,7 @@ make importance
 make eval-exotic
 ```
 
-`data/ml/valid.csv`（実着順）と `data/ml/exacta_pred.csv` / `data/ml/trifecta_pred.csv` を照合して、  
+`data/marts/train_valid/split_id=.../valid.parquet`（実着順）と `data/ml/exacta_pred.csv` / `data/ml/trifecta_pred.csv` を照合して、  
 `data/ml/exotic_eval_summary.json` に `hit@1,3,5,10,20` を出力します。
 
 `generate_exotics.rb` のスコアは高精度で保存されるため、`eval-exotic` の順位判定は `predict` 実行時と整合しやすくなっています。

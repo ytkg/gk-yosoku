@@ -20,6 +20,7 @@ class ExoticEvaluator
   end
 
   def run
+    validate_input_options!
     actual_by_race = build_actual_by_race
     exacta_by_race = read_pred_by_race(@exacta_csv, :exacta)
     trifecta_by_race = read_pred_by_race(@trifecta_csv, :trifecta)
@@ -39,6 +40,20 @@ class ExoticEvaluator
   end
 
   private
+
+  def validate_input_options!
+    actual_parquet_present = !(@actual_parquet.nil? || @actual_parquet.empty?)
+    actual_csv_present = !(@actual_csv.nil? || @actual_csv.empty?)
+
+    if actual_parquet_present
+      warn "actual-csv is ignored because actual-parquet is set" if actual_csv_present
+      return
+    end
+
+    raise "actual-csv or actual-parquet is required" unless actual_csv_present
+
+    warn "actual input mode=csv (compatibility mode). Use --actual-parquet for standard v2 flow."
+  end
 
   def build_actual_by_race
     rows = CSV.read(resolved_actual_csv, headers: true, encoding: "UTF-8").map(&:to_h)
@@ -145,7 +160,7 @@ class ExoticEvaluator
 end
 
 options = {
-  actual_csv: File.join("data", "ml", "valid.csv"),
+  actual_csv: nil,
   actual_parquet: nil,
   db_path: File.join("data", "duckdb", "gk_yosoku.duckdb"),
   exacta_csv: File.join("data", "ml", "exacta_pred.csv"),

@@ -418,13 +418,13 @@ exotic:
 	$(DOCKER_RUN) ruby scripts/generate_exotics.rb $(EXOTIC_OPTS)
 
 eval-exotic:
-	$(DOCKER_RUN) ruby scripts/evaluate_exotics.rb
+	$(DOCKER_RUN) ruby scripts/evaluate_exotics.rb --actual-parquet $(PROFILE_MART_DIR)/valid.parquet --db-path $(PARQUET_DB)
 
 exotic-weakodds:
 	$(DOCKER_RUN) ruby scripts/generate_exotics.rb --in-csv data/ml_weakodds/valid_pred.csv --win-csv data/ml_top1_weakodds/valid_pred.csv --out-dir data/ml_weakodds $(EXOTIC_OPTS)
 
 eval-exotic-weakodds:
-	$(DOCKER_RUN) ruby scripts/evaluate_exotics.rb --exacta-csv data/ml_weakodds/exacta_pred.csv --trifecta-csv data/ml_weakodds/trifecta_pred.csv --out data/ml_weakodds/exotic_eval_summary.json
+	$(DOCKER_RUN) ruby scripts/evaluate_exotics.rb --actual-parquet $(PROFILE_MART_DIR)/valid.parquet --db-path $(PARQUET_DB) --exacta-csv data/ml_weakodds/exacta_pred.csv --trifecta-csv data/ml_weakodds/trifecta_pred.csv --out data/ml_weakodds/exotic_eval_summary.json
 
 learn-hit5-profile:
 	mkdir -p data/ml_profile/top3_train data/ml_profile/top1_train data/ml_profile/top3_valid data/ml_profile/top1_valid
@@ -432,19 +432,19 @@ learn-hit5-profile:
 	$(DOCKER_RUN) ruby scripts/evaluate_lightgbm.rb --target-col top1 --model $(HIT5_TOP1_MODEL) --encoders $(HIT5_TOP1_ENCODERS) --valid-parquet $(PROFILE_MART_DIR)/train.parquet --db-path $(PARQUET_DB) --out-dir data/ml_profile/top1_train
 	$(DOCKER_RUN) ruby scripts/evaluate_lightgbm.rb --target-col top3 --model $(HIT5_TOP3_MODEL) --encoders $(HIT5_TOP3_ENCODERS) --valid-parquet $(PROFILE_MART_DIR)/valid.parquet --db-path $(PARQUET_DB) --out-dir data/ml_profile/top3_valid
 	$(DOCKER_RUN) ruby scripts/evaluate_lightgbm.rb --target-col top1 --model $(HIT5_TOP1_MODEL) --encoders $(HIT5_TOP1_ENCODERS) --valid-parquet $(PROFILE_MART_DIR)/valid.parquet --db-path $(PARQUET_DB) --out-dir data/ml_profile/top1_valid
-	$(DOCKER_RUN) ruby scripts/learn_exotic_profile.rb --out $(HIT5_PROFILE) $(HIT5_LEARN_OPTS)
+	$(DOCKER_RUN) ruby scripts/learn_exotic_profile.rb --train-actual-parquet $(PROFILE_MART_DIR)/train.parquet --valid-actual-parquet $(PROFILE_MART_DIR)/valid.parquet --db-path $(PARQUET_DB) --out $(HIT5_PROFILE) $(HIT5_LEARN_OPTS)
 
 learn-exacta-profile:
 	$(MAKE) learn-hit5-profile HIT5_PROFILE=$(EXACTA_PROFILE) HIT5_LEARN_OPTS="$(EXACTA_LEARN_OPTS)"
 
 eval-exacta-profile:
 	$(DOCKER_RUN) ruby scripts/generate_exotics.rb --in-csv data/ml/valid_pred.csv --win-csv data/ml_top1/valid_pred.csv --out-dir data/ml --profile $(EXACTA_PROFILE) --exacta-top 20 --trifecta-top 50
-	$(DOCKER_RUN) ruby scripts/evaluate_exotics.rb --out data/ml/exotic_eval_summary_exacta_profile.json
+	$(DOCKER_RUN) ruby scripts/evaluate_exotics.rb --actual-parquet $(PROFILE_MART_DIR)/valid.parquet --db-path $(PARQUET_DB) --out data/ml/exotic_eval_summary_exacta_profile.json
 
 optimize-exotic-hitk:
 	$(MAKE) learn-hit5-profile HIT5_PROFILE=$(EXOTIC_OPT_PROFILE) HIT5_LEARN_OPTS="$(EXOTIC_OPT_LEARN_OPTS)"
 	$(DOCKER_RUN) ruby scripts/generate_exotics.rb --in-csv data/ml/valid_pred.csv --win-csv data/ml_top1/valid_pred.csv --out-dir data/ml --profile $(EXOTIC_OPT_PROFILE) --exacta-top $(EXACTA_TOP_N) --trifecta-top $(TRIFECTA_TOP_N)
-	$(DOCKER_RUN) ruby scripts/evaluate_exotics.rb --out $(EXOTIC_OPT_EVAL_OUT)
+	$(DOCKER_RUN) ruby scripts/evaluate_exotics.rb --actual-parquet $(PROFILE_MART_DIR)/valid.parquet --db-path $(PARQUET_DB) --out $(EXOTIC_OPT_EVAL_OUT)
 
 tune:
 	$(DOCKER_RUN) ruby scripts/tune_lightgbm.rb --weight-mode $(WEIGHT_MODE) --decay-half-life-days $(DECAY_HALF_LIFE_DAYS) --min-sample-weight $(MIN_SAMPLE_WEIGHT) $(TOP3_FEATURE_OPTS) $(TUNE_DUCKDB_OPTS) $(TUNE_OPTS)

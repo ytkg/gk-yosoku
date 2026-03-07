@@ -34,6 +34,7 @@ class ExoticProfileLearner
   end
 
   def run
+    validate_actual_inputs!
     train_races = build_races(@train_top3_csv, @train_top1_csv, resolved_actual_csv(:train))
     valid_races = build_races(@valid_top3_csv, @valid_top1_csv, resolved_actual_csv(:valid))
     raise "train races is empty" if train_races.empty?
@@ -113,6 +114,25 @@ class ExoticProfileLearner
   end
 
   private
+
+  def validate_actual_inputs!
+    validate_actual_input!("train", @train_actual_csv, @train_actual_parquet)
+    validate_actual_input!("valid", @valid_actual_csv, @valid_actual_parquet)
+  end
+
+  def validate_actual_input!(split, csv_path, parquet_path)
+    parquet_present = !(parquet_path.nil? || parquet_path.empty?)
+    csv_present = !(csv_path.nil? || csv_path.empty?)
+
+    if parquet_present
+      warn "#{split}-actual-csv is ignored because #{split}-actual-parquet is set" if csv_present
+      return
+    end
+
+    raise "#{split}-actual-csv or #{split}-actual-parquet is required" unless csv_present
+
+    warn "#{split}_actual input mode=csv (compatibility mode). Use #{split}-actual-parquet for standard v2 flow."
+  end
 
   def resolved_actual_csv(split)
     parquet_path, csv_path =
@@ -333,11 +353,11 @@ end
 options = {
   train_top3_csv: File.join("data", "ml_profile", "top3_train", "valid_pred.csv"),
   train_top1_csv: File.join("data", "ml_profile", "top1_train", "valid_pred.csv"),
-  train_actual_csv: File.join("data", "ml", "train.csv"),
+  train_actual_csv: nil,
   train_actual_parquet: nil,
   valid_top3_csv: File.join("data", "ml_profile", "top3_valid", "valid_pred.csv"),
   valid_top1_csv: File.join("data", "ml_profile", "top1_valid", "valid_pred.csv"),
-  valid_actual_csv: File.join("data", "ml", "valid.csv"),
+  valid_actual_csv: nil,
   valid_actual_parquet: nil,
   db_path: File.join("data", "duckdb", "gk_yosoku.duckdb"),
   out_path: File.join("data", "ml", "exotic_profile_hit5.json"),
